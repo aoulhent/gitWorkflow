@@ -1,0 +1,101 @@
+import { TestBed } from '@angular/core/testing';
+import { of, throwError } from 'rxjs';
+import { finalize } from 'rxjs/operators';
+import { YourComponent } from './your-component'; // Adjust the import path as necessary
+import { DxApiService } from './dx-api.service';  // Adjust the import path as necessary
+
+describe('YourComponent', () => {
+    let component: YourComponent;
+    let dxApiService: jasmine.SpyObj<DxApiService>;
+
+    beforeEach(() => {
+        const spy = jasmine.createSpyObj('DxApiService', ['getClient']);
+
+        TestBed.configureTestingModule({
+            // Declare your component here
+            providers: [
+                { provide: DxApiService, useValue: spy }
+            ]
+        });
+
+        // Create component and inject the service spy
+        component = TestBed.createComponent(YourComponent).componentInstance;
+        dxApiService = TestBed.inject(DxApiService) as jasmine.SpyObj<DxApiService>;
+    });
+
+    it('should do nothing if client or client.idClient is undefined', () => {
+        component.client = undefined;
+        component.refreshNom();
+        expect(dxApiService.getClient).not.toHaveBeenCalled();
+
+        component.client = { idClient: undefined };
+        component.refreshNom();
+        expect(dxApiService.getClient).not.toHaveBeenCalled();
+    });
+
+    it('should call refresh() if idClient length is not 17', () => {
+        spyOn(component, 'refresh');
+        component.client = { idClient: '123' };  // length not 17
+
+        component.refreshNom();
+
+        expect(dxApiService.getClient).not.toHaveBeenCalled();
+        expect(component.refresh).toHaveBeenCalled();
+    });
+
+    it('should call dxApiService.getClient and update client on success', () => {
+        const mockResponse = [{ lastname: 'Smith', firstname: 'John' }];
+        component.client = { idClient: '12345678901234567', nom: '', prenom: '' };  // length 17
+
+        dxApiService.getClient.and.returnValue(of(mockResponse));
+
+        component.refreshNom();
+
+        expect(dxApiService.getClient).toHaveBeenCalledWith('12345678901234567');
+        expect(component.client.nom).toBe('Smith'.slice(0, 23));
+        expect(component.client.prenom).toBe('John'.slice(0, 23));
+    });
+
+    it('should set client.nom and client.prenom to empty on error', () => {
+        component.client = { idClient: '12345678901234567', nom: '', prenom: '' };  // length 17
+
+        dxApiService.getClient.and.returnValue(throwError('error'));
+
+        component.refreshNom();
+
+        expect(dxApiService.getClient).toHaveBeenCalledWith('12345678901234567');
+        expect(component.client.nom).toBe('');
+        expect(component.client.prenom).toBe('');
+    });
+
+    it('should call trim and finalize properly', () => {
+        spyOn(component, 'trim').and.callThrough();
+        spyOn(component, 'refresh');
+
+        const mockResponse = [{ lastname: 'Smith', firstname: 'John' }];
+        component.client = { idClient: '12345678901234567', nom: '', prenom: '' };  // length 17
+
+        dxApiService.getClient.and.returnValue(of(mockResponse));
+
+        component.refreshNom();
+
+        expect(component.trim).toHaveBeenCalled();
+        expect(dxApiService.getClient).toHaveBeenCalledWith('12345678901234567');
+        expect(component.refresh).toHaveBeenCalled();
+    });
+
+    it('should call trim and finalize properly on error', () => {
+        spyOn(component, 'trim').and.callThrough();
+        spyOn(component, 'refresh');
+
+        component.client = { idClient: '12345678901234567', nom: '', prenom: '' };  // length 17
+
+        dxApiService.getClient.and.returnValue(throwError('error'));
+
+        component.refreshNom();
+
+        expect(component.trim).toHaveBeenCalled();
+        expect(dxApiService.getClient).toHaveBeenCalledWith('12345678901234567');
+        expect(component.refresh).toHaveBeenCalled();
+    });
+});
