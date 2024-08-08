@@ -1,104 +1,149 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CoffeeClosureComponent } from './coffee-closure.component';
-import { of, throwError } from 'rxjs';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { ConfirmationService } from 'path/to/confirmation-service';
-import { DialogService } from 'path/to/dialog-service';
-import { CoffeeFormService } from 'path/to/coffee-form-service';
-import { Router } from '@angular/router';
-import { MessageService } from 'path/to/message-service';
+import { YourComponent } from './your-component.component';
+import { CoffeeClosure, CoffeeAvenant, CoffeeLocation } from './your-models';
 
-describe('CoffeeClosureComponent', () => {
-  let component: CoffeeClosureComponent;
-  let fixture: ComponentFixture<CoffeeClosureComponent>;
-  let confirmationService: jasmine.SpyObj<ConfirmationService>;
-  let dialogService: jasmine.SpyObj<DialogService>;
-  let coffeeFormService: jasmine.SpyObj<CoffeeFormService>;
-  let router: jasmine.SpyObj<Router>;
-  let messageService: jasmine.SpyObj<MessageService>;
-
-  beforeEach(async () => {
-    const confirmationServiceSpy = jasmine.createSpyObj('ConfirmationService', ['confirm']);
-    const dialogServiceSpy = jasmine.createSpyObj('DialogService', ['open']);
-    const coffeeFormServiceSpy = jasmine.createSpyObj('CoffeeFormService', ['isInvalid']);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigateByUrl']);
-    const messageServiceSpy = jasmine.createSpyObj('MessageService', ['add']);
-
-    await TestBed.configureTestingModule({
-      declarations: [ CoffeeClosureComponent ],
-      imports: [ HttpClientTestingModule ],
-      providers: [
-        { provide: ConfirmationService, useValue: confirmationServiceSpy },
-        { provide: DialogService, useValue: dialogServiceSpy },
-        { provide: CoffeeFormService, useValue: coffeeFormServiceSpy },
-        { provide: Router, useValue: routerSpy },
-        { provide: MessageService, useValue: messageServiceSpy }
-      ]
-    })
-    .compileComponents();
-
-    confirmationService = TestBed.inject(ConfirmationService) as jasmine.SpyObj<ConfirmationService>;
-    dialogService = TestBed.inject(DialogService) as jasmine.SpyObj<DialogService>;
-    coffeeFormService = TestBed.inject(CoffeeFormService) as jasmine.SpyObj<CoffeeFormService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
-    messageService = TestBed.inject(MessageService) as jasmine.SpyObj<MessageService>;
-  });
+describe('YourComponent', () => {
+  let component: YourComponent;
+  let fixture: ComponentFixture<YourComponent>;
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(CoffeeClosureComponent);
+    TestBed.configureTestingModule({
+      declarations: [ YourComponent ],
+      providers: [ /* Add necessary providers here */ ]
+    });
+
+    fixture = TestBed.createComponent(YourComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
+  it('should initialize CoffeeClosure on ngOnInit', () => {
+    const mockLocation = new CoffeeLocation();
+    mockLocation.status = "CLOTUREE";
+    mockLocation.closureDate = new Date('2023-01-01');
+    mockLocation.id = 1;
+    mockLocation.bordereau = '1234';
+    mockLocation.compte = 'account123';
+    mockLocation.client = 'Client A';
+    mockLocation.pdvRemiseCle = 'KeyLocation';
+
+    component.coffreLocation = mockLocation;
+
+    component.ngOnInit();
+
+    expect(component.coffreClosure.closureDate).toEqual(new Date('2023-01-01'));
+    expect(component.coffreClosure.id).toBe(1);
+    expect(component.coffreClosure.bordereau).toBe('1234');
+    expect(component.coffreClosure.compte).toBe('account123');
+    expect(component.coffreClosure.client).toBe('Client A');
+    expect(component.coffreClosure.pdvRemiseCle).toBe('KeyLocation');
   });
 
-  describe('#clotureDialogCancel', () => {
-    it('should confirm closure and save ongoing', () => {
-      confirmationService.confirm.and.callFake((options: any) => options.accept());
-      spyOn(component, 'saveOngoing').and.returnValue(true);
-      
-      component.clotureDialogCancel();
+  it('should initialize CoffeeAvenant when isTransferSameAgence and not isTransferToOtherAgence', () => {
+    const mockLocation = new CoffeeLocation();
+    mockLocation.client = 'Client A';
+    mockLocation.adresse = '123 Street';
 
-      expect(confirmationService.confirm).toHaveBeenCalled();
-      expect(component.saveOngoing).toBeTruthy();
-    });
+    component.isTransferSameAgence = true;
+    component.isTransferToOtherAgence = false;
+    component.coffreLocation = mockLocation;
 
-    it('should handle error during closure', () => {
-      confirmationService.confirm.and.callFake((options: any) => options.accept());
-      spyOn(component, 'saveOngoing').and.returnValue(false);
-      spyOn(component['http'], 'post').and.returnValue(throwError({}));
+    component.ngOnInit();
 
-      component.clotureDialogCancel();
-
-      expect(confirmationService.confirm).toHaveBeenCalled();
-      expect(messageService.add).toHaveBeenCalledWith({
-        severity: 'error',
-        summary: 'Erreur',
-        detail: 'Location non fermée'
-      });
-    });
-  });
-
-  describe('#documeDialog', () => {
-    it('should open dialog if form is valid', () => {
-      coffeeFormService.isInvalid.and.returnValue(false);
-      dialogService.open.and.returnValue({
-        afterClosed: () => of({}) // Simulate dialog close
-      });
-
-      component.documeDialog();
-
-      expect(dialogService.open).toHaveBeenCalled();
-    });
-
-    it('should handle invalid form', () => {
-      coffeeFormService.isInvalid.and.returnValue(true);
-
-      component.documeDialog();
-
-      expect(dialogService.open).not.toHaveBeenCalled();
-    });
+    expect(component.coffreAvenant.closureDate).toEqual(jasmine.any(Date));
+    expect(component.coffreAvenant.client).toBe('Client A');
+    expect(component.coffreAvenant.adresse).toBe('123 Street');
   });
 });
+
+
+import { of, throwError } from 'rxjs';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { finalize } from 'rxjs/operators';
+
+describe('YourComponent - Confirmation Logic', () => {
+  let component: YourComponent;
+  let fixture: ComponentFixture<YourComponent>;
+  let httpMock: HttpClientTestingModule;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      declarations: [YourComponent],
+      providers: [/* Mock services if needed */]
+    });
+
+    fixture = TestBed.createComponent(YourComponent);
+    component = fixture.componentInstance;
+  });
+
+  it('should handle accept logic correctly', () => {
+    const confirmationServiceSpy = spyOn(component['confirmationService'], 'confirm').and.callFake((options: any) => {
+      options.accept();
+    });
+
+    const httpSpy = spyOn(component['http'], 'post').and.returnValue(of({}));
+    const messageServiceSpy = spyOn(component['messageService'], 'add');
+
+    component.coffreLocation = { id: 1 };
+    component.saveOngoing = true;
+    component.isClosureTemporary = true;
+
+    component.ref = { close: jasmine.createSpy('close') };
+    component.confirmationService.confirm({
+      header: 'header',
+      acceptLabel: 'Oui',
+      rejectLabel: 'Non',
+      accept: () => { },
+      reject: () => { }
+    });
+
+    expect(httpSpy).toHaveBeenCalledWith(`/coffres/location/1/cloturerTransferer`, jasmine.any(Object));
+    expect(messageServiceSpy).toHaveBeenCalledWith(jasmine.objectContaining({
+      severity: 'info',
+      summary: 'Info',
+      detail: 'Location clôturée et prête pour le transfert vers une autre agence'
+    }));
+    expect(component.busy).toBe(false);
+    expect(component.ref.close).not.toHaveBeenCalled();
+  });
+
+  it('should handle reject logic correctly', () => {
+    component.ref = { close: jasmine.createSpy('close') };
+
+    component.confirmationService.confirm({
+      header: 'header',
+      acceptLabel: 'Oui',
+      rejectLabel: 'Non',
+      accept: () => { },
+      reject: () => { }
+    });
+
+    expect(component.ref.close).toHaveBeenCalledWith(null);
+  });
+
+  it('should handle HTTP error correctly', () => {
+    const confirmationServiceSpy = spyOn(component['confirmationService'], 'confirm').and.callFake((options: any) => {
+      options.accept();
+    });
+
+    const httpSpy = spyOn(component['http'], 'post').and.returnValue(throwError({ status: 500 }));
+    const errorServiceSpy = spyOn(component['errorService'], 'httpError');
+
+    component.coffreLocation = { id: 1 };
+    component.saveOngoing = true;
+    component.isClosureTemporary = true;
+
+    component.confirmationService.confirm({
+      header: 'header',
+      acceptLabel: 'Oui',
+      rejectLabel: 'Non',
+      accept: () => { },
+      reject: () => { }
+    });
+
+    expect(httpSpy).toHaveBeenCalled();
+    expect(errorServiceSpy).toHaveBeenCalledWith(jasmine.any(Object));
+    expect(component.busy).toBe(false);
+  });
+});
+
