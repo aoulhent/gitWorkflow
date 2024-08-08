@@ -1,101 +1,104 @@
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CoffeeClosureComponent } from './coffee-closure.component';
 import { of, throwError } from 'rxjs';
-import { finalize } from 'rxjs/operators';
-import { YourComponent } from './your-component'; // Adjust the import path as necessary
-import { DxApiService } from './dx-api.service';  // Adjust the import path as necessary
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { ConfirmationService } from 'path/to/confirmation-service';
+import { DialogService } from 'path/to/dialog-service';
+import { CoffeeFormService } from 'path/to/coffee-form-service';
+import { Router } from '@angular/router';
+import { MessageService } from 'path/to/message-service';
 
-describe('YourComponent', () => {
-    let component: YourComponent;
-    let dxApiService: jasmine.SpyObj<DxApiService>;
+describe('CoffeeClosureComponent', () => {
+  let component: CoffeeClosureComponent;
+  let fixture: ComponentFixture<CoffeeClosureComponent>;
+  let confirmationService: jasmine.SpyObj<ConfirmationService>;
+  let dialogService: jasmine.SpyObj<DialogService>;
+  let coffeeFormService: jasmine.SpyObj<CoffeeFormService>;
+  let router: jasmine.SpyObj<Router>;
+  let messageService: jasmine.SpyObj<MessageService>;
 
-    beforeEach(() => {
-        const spy = jasmine.createSpyObj('DxApiService', ['getClient']);
+  beforeEach(async () => {
+    const confirmationServiceSpy = jasmine.createSpyObj('ConfirmationService', ['confirm']);
+    const dialogServiceSpy = jasmine.createSpyObj('DialogService', ['open']);
+    const coffeeFormServiceSpy = jasmine.createSpyObj('CoffeeFormService', ['isInvalid']);
+    const routerSpy = jasmine.createSpyObj('Router', ['navigateByUrl']);
+    const messageServiceSpy = jasmine.createSpyObj('MessageService', ['add']);
 
-        TestBed.configureTestingModule({
-            // Declare your component here
-            providers: [
-                { provide: DxApiService, useValue: spy }
-            ]
-        });
+    await TestBed.configureTestingModule({
+      declarations: [ CoffeeClosureComponent ],
+      imports: [ HttpClientTestingModule ],
+      providers: [
+        { provide: ConfirmationService, useValue: confirmationServiceSpy },
+        { provide: DialogService, useValue: dialogServiceSpy },
+        { provide: CoffeeFormService, useValue: coffeeFormServiceSpy },
+        { provide: Router, useValue: routerSpy },
+        { provide: MessageService, useValue: messageServiceSpy }
+      ]
+    })
+    .compileComponents();
 
-        // Create component and inject the service spy
-        component = TestBed.createComponent(YourComponent).componentInstance;
-        dxApiService = TestBed.inject(DxApiService) as jasmine.SpyObj<DxApiService>;
+    confirmationService = TestBed.inject(ConfirmationService) as jasmine.SpyObj<ConfirmationService>;
+    dialogService = TestBed.inject(DialogService) as jasmine.SpyObj<DialogService>;
+    coffeeFormService = TestBed.inject(CoffeeFormService) as jasmine.SpyObj<CoffeeFormService>;
+    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    messageService = TestBed.inject(MessageService) as jasmine.SpyObj<MessageService>;
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(CoffeeClosureComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
+  });
+
+  describe('#clotureDialogCancel', () => {
+    it('should confirm closure and save ongoing', () => {
+      confirmationService.confirm.and.callFake((options: any) => options.accept());
+      spyOn(component, 'saveOngoing').and.returnValue(true);
+      
+      component.clotureDialogCancel();
+
+      expect(confirmationService.confirm).toHaveBeenCalled();
+      expect(component.saveOngoing).toBeTruthy();
     });
 
-    it('should do nothing if client or client.idClient is undefined', () => {
-        component.client = undefined;
-        component.refreshNom();
-        expect(dxApiService.getClient).not.toHaveBeenCalled();
+    it('should handle error during closure', () => {
+      confirmationService.confirm.and.callFake((options: any) => options.accept());
+      spyOn(component, 'saveOngoing').and.returnValue(false);
+      spyOn(component['http'], 'post').and.returnValue(throwError({}));
 
-        component.client = { idClient: undefined };
-        component.refreshNom();
-        expect(dxApiService.getClient).not.toHaveBeenCalled();
+      component.clotureDialogCancel();
+
+      expect(confirmationService.confirm).toHaveBeenCalled();
+      expect(messageService.add).toHaveBeenCalledWith({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: 'Location non fermée'
+      });
+    });
+  });
+
+  describe('#documeDialog', () => {
+    it('should open dialog if form is valid', () => {
+      coffeeFormService.isInvalid.and.returnValue(false);
+      dialogService.open.and.returnValue({
+        afterClosed: () => of({}) // Simulate dialog close
+      });
+
+      component.documeDialog();
+
+      expect(dialogService.open).toHaveBeenCalled();
     });
 
-    it('should call refresh() if idClient length is not 17', () => {
-        spyOn(component, 'refresh');
-        component.client = { idClient: '123' };  // length not 17
+    it('should handle invalid form', () => {
+      coffeeFormService.isInvalid.and.returnValue(true);
 
-        component.refreshNom();
+      component.documeDialog();
 
-        expect(dxApiService.getClient).not.toHaveBeenCalled();
-        expect(component.refresh).toHaveBeenCalled();
+      expect(dialogService.open).not.toHaveBeenCalled();
     });
-
-    it('should call dxApiService.getClient and update client on success', () => {
-        const mockResponse = [{ lastname: 'Smith', firstname: 'John' }];
-        component.client = { idClient: '12345678901234567', nom: '', prenom: '' };  // length 17
-
-        dxApiService.getClient.and.returnValue(of(mockResponse));
-
-        component.refreshNom();
-
-        expect(dxApiService.getClient).toHaveBeenCalledWith('12345678901234567');
-        expect(component.client.nom).toBe('Smith'.slice(0, 23));
-        expect(component.client.prenom).toBe('John'.slice(0, 23));
-    });
-
-    it('should set client.nom and client.prenom to empty on error', () => {
-        component.client = { idClient: '12345678901234567', nom: '', prenom: '' };  // length 17
-
-        dxApiService.getClient.and.returnValue(throwError('error'));
-
-        component.refreshNom();
-
-        expect(dxApiService.getClient).toHaveBeenCalledWith('12345678901234567');
-        expect(component.client.nom).toBe('');
-        expect(component.client.prenom).toBe('');
-    });
-
-    it('should call trim and finalize properly', () => {
-        spyOn(component, 'trim').and.callThrough();
-        spyOn(component, 'refresh');
-
-        const mockResponse = [{ lastname: 'Smith', firstname: 'John' }];
-        component.client = { idClient: '12345678901234567', nom: '', prenom: '' };  // length 17
-
-        dxApiService.getClient.and.returnValue(of(mockResponse));
-
-        component.refreshNom();
-
-        expect(component.trim).toHaveBeenCalled();
-        expect(dxApiService.getClient).toHaveBeenCalledWith('12345678901234567');
-        expect(component.refresh).toHaveBeenCalled();
-    });
-
-    it('should call trim and finalize properly on error', () => {
-        spyOn(component, 'trim').and.callThrough();
-        spyOn(component, 'refresh');
-
-        component.client = { idClient: '12345678901234567', nom: '', prenom: '' };  // length 17
-
-        dxApiService.getClient.and.returnValue(throwError('error'));
-
-        component.refreshNom();
-
-        expect(component.trim).toHaveBeenCalled();
-        expect(dxApiService.getClient).toHaveBeenCalledWith('12345678901234567');
-        expect(component.refresh).toHaveBeenCalled();
-    });
+  });
 });
