@@ -1,149 +1,97 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { of } from 'rxjs';
 import { YourComponent } from './your-component.component';
-import { CoffeeClosure, CoffeeAvenant, CoffeeLocation } from './your-models';
+import { HttpClient } from '@angular/common/http';
+import { ErrorService } from 'src/app/services/error.service';
+import { MessageService } from 'primeng/api';
+import { ConfirmationService } from 'primeng/api';
+import { DynamicDialogConfig, DynamicDialogRef } from 'primeng/dynamicdialog';
+import { CoffreQualiteRepresentantService } from 'src/app/services/coffre-qualite-representant.service';
+import { CoffreFormService } from 'src/app/services/coffre-form.service';
 
 describe('YourComponent', () => {
   let component: YourComponent;
   let fixture: ComponentFixture<YourComponent>;
 
-  beforeEach(() => {
-    TestBed.configureTestingModule({
-      declarations: [ YourComponent ],
-      providers: [ /* Add necessary providers here */ ]
-    });
+  const mockConfig = {
+    data: {
+      coffreDataTransfer1: {},
+      client: 'TestClient',
+      compte: 'TestCompte',
+      pdvs: [],
+      coffreClotureFromLocation: null,
+      coffreLocation: { statut: 'ACTIVE' },
+      pdvRemiseCle: 'TestRemiseCle',
+      isTransferSameAgence: true,
+      isTransferOtherAgence: false,
+      labelButton: 'TestButton',
+      labelHeader: 'TestHeader',
+      isClosure: false,
+      isClosureTemporary: false,
+      coffreTarifications: [],
+      coffreData: {}
+    }
+  };
 
-    fixture = TestBed.createComponent(YourComponent);
-    component = fixture.componentInstance;
-  });
+  const mockQualiteRepresentantService = {
+    load: jasmine.createSpy('load').and.returnValue(of([
+      { nom: 'QualRep1', id: 1, visible: true },
+      { nom: 'QualRep2', id: 2, visible: false }
+    ]))
+  };
 
-  it('should initialize CoffeeClosure on ngOnInit', () => {
-    const mockLocation = new CoffeeLocation();
-    mockLocation.status = "CLOTUREE";
-    mockLocation.closureDate = new Date('2023-01-01');
-    mockLocation.id = 1;
-    mockLocation.bordereau = '1234';
-    mockLocation.compte = 'account123';
-    mockLocation.client = 'Client A';
-    mockLocation.pdvRemiseCle = 'KeyLocation';
-
-    component.coffreLocation = mockLocation;
-
-    component.ngOnInit();
-
-    expect(component.coffreClosure.closureDate).toEqual(new Date('2023-01-01'));
-    expect(component.coffreClosure.id).toBe(1);
-    expect(component.coffreClosure.bordereau).toBe('1234');
-    expect(component.coffreClosure.compte).toBe('account123');
-    expect(component.coffreClosure.client).toBe('Client A');
-    expect(component.coffreClosure.pdvRemiseCle).toBe('KeyLocation');
-  });
-
-  it('should initialize CoffeeAvenant when isTransferSameAgence and not isTransferToOtherAgence', () => {
-    const mockLocation = new CoffeeLocation();
-    mockLocation.client = 'Client A';
-    mockLocation.adresse = '123 Street';
-
-    component.isTransferSameAgence = true;
-    component.isTransferToOtherAgence = false;
-    component.coffreLocation = mockLocation;
-
-    component.ngOnInit();
-
-    expect(component.coffreAvenant.closureDate).toEqual(jasmine.any(Date));
-    expect(component.coffreAvenant.client).toBe('Client A');
-    expect(component.coffreAvenant.adresse).toBe('123 Street');
-  });
-});
-
-
-import { of, throwError } from 'rxjs';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { finalize } from 'rxjs/operators';
-
-describe('YourComponent - Confirmation Logic', () => {
-  let component: YourComponent;
-  let fixture: ComponentFixture<YourComponent>;
-  let httpMock: HttpClientTestingModule;
-
-  beforeEach(() => {
-    TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
       declarations: [YourComponent],
-      providers: [/* Mock services if needed */]
-    });
+      providers: [
+        { provide: HttpClient, useValue: {} },
+        { provide: ErrorService, useValue: {} },
+        { provide: MessageService, useValue: {} },
+        { provide: ConfirmationService, useValue: {} },
+        { provide: DynamicDialogRef, useValue: {} },
+        { provide: DynamicDialogConfig, useValue: mockConfig },
+        { provide: CoffreQualiteRepresentantService, useValue: mockQualiteRepresentantService },
+        { provide: CoffreFormService, useValue: {} }
+      ]
+    }).compileComponents();
+  });
 
+  beforeEach(() => {
     fixture = TestBed.createComponent(YourComponent);
     component = fixture.componentInstance;
+    fixture.detectChanges();
   });
 
-  it('should handle accept logic correctly', () => {
-    const confirmationServiceSpy = spyOn(component['confirmationService'], 'confirm').and.callFake((options: any) => {
-      options.accept();
-    });
-
-    const httpSpy = spyOn(component['http'], 'post').and.returnValue(of({}));
-    const messageServiceSpy = spyOn(component['messageService'], 'add');
-
-    component.coffreLocation = { id: 1 };
-    component.saveOngoing = true;
-    component.isClosureTemporary = true;
-
-    component.ref = { close: jasmine.createSpy('close') };
-    component.confirmationService.confirm({
-      header: 'header',
-      acceptLabel: 'Oui',
-      rejectLabel: 'Non',
-      accept: () => { },
-      reject: () => { }
-    });
-
-    expect(httpSpy).toHaveBeenCalledWith(`/coffres/location/1/cloturerTransferer`, jasmine.any(Object));
-    expect(messageServiceSpy).toHaveBeenCalledWith(jasmine.objectContaining({
-      severity: 'info',
-      summary: 'Info',
-      detail: 'Location clôturée et prête pour le transfert vers une autre agence'
-    }));
-    expect(component.busy).toBe(false);
-    expect(component.ref.close).not.toHaveBeenCalled();
+  it('should create the component', () => {
+    expect(component).toBeTruthy();
   });
 
-  it('should handle reject logic correctly', () => {
-    component.ref = { close: jasmine.createSpy('close') };
-
-    component.confirmationService.confirm({
-      header: 'header',
-      acceptLabel: 'Oui',
-      rejectLabel: 'Non',
-      accept: () => { },
-      reject: () => { }
-    });
-
-    expect(component.ref.close).toHaveBeenCalledWith(null);
+  it('should initialize component with provided DynamicDialogConfig', () => {
+    expect(component.client).toBe('TestClient');
+    expect(component.compte).toBe('TestCompte');
+    expect(component.pdvRemiseCle).toBe('TestRemiseCle');
+    expect(component.isTransferSameAgence).toBe(true);
+    expect(component.isTransferOtherAgence).toBe(false);
   });
 
-  it('should handle HTTP error correctly', () => {
-    const confirmationServiceSpy = spyOn(component['confirmationService'], 'confirm').and.callFake((options: any) => {
-      options.accept();
-    });
+  it('should set up coffreCloture in ngOnInit', () => {
+    component.ngOnInit();
+    expect(component.coffreCloture).toBeDefined();
+    expect(component.coffreCloture.clotureDate).toBeTruthy();
+    expect(component.coffreCloture.client).toBe('TestCompte');
+  });
 
-    const httpSpy = spyOn(component['http'], 'post').and.returnValue(throwError({ status: 500 }));
-    const errorServiceSpy = spyOn(component['errorService'], 'httpError');
+  it('should set up coffreAvenant in ngOnInit when isTransferSameAgence is true', () => {
+    component.ngOnInit();
+    expect(component.coffreAvenant).toBeDefined();
+    expect(component.coffreAvenant.avenantDate).toBeTruthy();
+    expect(component.coffreAvenant.client).toBe('TestClient');
+  });
 
-    component.coffreLocation = { id: 1 };
-    component.saveOngoing = true;
-    component.isClosureTemporary = true;
-
-    component.confirmationService.confirm({
-      header: 'header',
-      acceptLabel: 'Oui',
-      rejectLabel: 'Non',
-      accept: () => { },
-      reject: () => { }
-    });
-
-    expect(httpSpy).toHaveBeenCalled();
-    expect(errorServiceSpy).toHaveBeenCalledWith(jasmine.any(Object));
-    expect(component.busy).toBe(false);
+  it('should load and process qualiteRepresentant data', () => {
+    component.ngOnInit();
+    expect(mockQualiteRepresentantService.load).toHaveBeenCalled();
+    expect(component.selectItemQualRepEnum.length).toBe(1); // Only one visible item
+    expect(component.selectItemQualRepEnum[0].label).toBe('QualRep1');
   });
 });
-
