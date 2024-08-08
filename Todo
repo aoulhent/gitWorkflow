@@ -1,97 +1,122 @@
-import { TestBed, ComponentFixture } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
-import { YourComponent } from './your-component.component';
-import { HttpClient } from '@angular/common/http';
+import { DialogService } from 'primeng/dynamicdialog';
+import { UserService } from 'src/app/services/user.service';
 import { ErrorService } from 'src/app/services/error.service';
-import { MessageService } from 'primeng/api';
 import { ConfirmationService } from 'primeng/api';
-import { DynamicDialogConfig, DynamicDialogRef } from 'primeng/dynamicdialog';
-import { CoffreQualiteRepresentantService } from 'src/app/services/coffre-qualite-representant.service';
+import { CoffreParametreService } from 'src/app/services/coffre-parametre.service';
 import { CoffreFormService } from 'src/app/services/coffre-form.service';
+import { CoffreCartonSignatureService } from 'src/app/services/coffre-carton-signature.service';
+import { CoffreDocumentService } from 'src/app/services/coffre-document.service';
+import { MessageService } from 'primeng/api';
+import { CoffreContratDialogComponent } from 'src/app/components/coffre-contrat-dialog/coffre-contrat-dialog.component';
+import { CoffreComponent } from './coffre.component';
 
-describe('YourComponent', () => {
-  let component: YourComponent;
-  let fixture: ComponentFixture<YourComponent>;
-
-  const mockConfig = {
-    data: {
-      coffreDataTransfer1: {},
-      client: 'TestClient',
-      compte: 'TestCompte',
-      pdvs: [],
-      coffreClotureFromLocation: null,
-      coffreLocation: { statut: 'ACTIVE' },
-      pdvRemiseCle: 'TestRemiseCle',
-      isTransferSameAgence: true,
-      isTransferOtherAgence: false,
-      labelButton: 'TestButton',
-      labelHeader: 'TestHeader',
-      isClosure: false,
-      isClosureTemporary: false,
-      coffreTarifications: [],
-      coffreData: {}
-    }
-  };
-
-  const mockQualiteRepresentantService = {
-    load: jasmine.createSpy('load').and.returnValue(of([
-      { nom: 'QualRep1', id: 1, visible: true },
-      { nom: 'QualRep2', id: 2, visible: false }
-    ]))
-  };
+describe('CoffreComponent', () => {
+  let component: CoffreComponent;
+  let fixture: ComponentFixture<CoffreComponent>;
+  let httpMock: HttpTestingController;
+  let userServiceStub: Partial<UserService>;
 
   beforeEach(async () => {
+    userServiceStub = {
+      isApplicationAdmin: jasmine.createSpy('isApplicationAdmin').and.returnValue(true)
+    };
+
     await TestBed.configureTestingModule({
-      declarations: [YourComponent],
+      declarations: [CoffreComponent],
+      imports: [HttpClientTestingModule],
       providers: [
-        { provide: HttpClient, useValue: {} },
-        { provide: ErrorService, useValue: {} },
-        { provide: MessageService, useValue: {} },
-        { provide: ConfirmationService, useValue: {} },
-        { provide: DynamicDialogRef, useValue: {} },
-        { provide: DynamicDialogConfig, useValue: mockConfig },
-        { provide: CoffreQualiteRepresentantService, useValue: mockQualiteRepresentantService },
-        { provide: CoffreFormService, useValue: {} }
+        { provide: ActivatedRoute, useValue: { params: of({ id: 1 }) } },
+        { provide: Router, useValue: {} },
+        { provide: UserService, useValue: userServiceStub },
+        ErrorService,
+        ConfirmationService,
+        CoffreParametreService,
+        CoffreFormService,
+        CoffreCartonSignatureService,
+        CoffreDocumentService,
+        DialogService,
+        MessageService
       ]
     }).compileComponents();
-  });
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(YourComponent);
+    fixture = TestBed.createComponent(CoffreComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
-  it('should create the component', () => {
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it('should create', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should initialize component with provided DynamicDialogConfig', () => {
-    expect(component.client).toBe('TestClient');
-    expect(component.compte).toBe('TestCompte');
-    expect(component.pdvRemiseCle).toBe('TestRemiseCle');
-    expect(component.isTransferSameAgence).toBe(true);
-    expect(component.isTransferOtherAgence).toBe(false);
+  it('should initialize admin status on init', () => {
+    component.ngOnInit();
+    expect(component.isAdmin).toBeTrue();
   });
 
-  it('should set up coffreCloture in ngOnInit', () => {
+  it('should set conforme status based on contract', () => {
+    component.coffreContrat = { conforme: true };
     component.ngOnInit();
-    expect(component.coffreCloture).toBeDefined();
-    expect(component.coffreCloture.clotureDate).toBeTruthy();
-    expect(component.coffreCloture.client).toBe('TestCompte');
+    expect(component.conforme).toBe('true');
+
+    component.coffreContrat = { conforme: false };
+    component.ngOnInit();
+    expect(component.conforme).toBe('false');
   });
 
-  it('should set up coffreAvenant in ngOnInit when isTransferSameAgence is true', () => {
+  it('should set documentArchive based on contract', () => {
+    component.coffreContrat = { documentArchive: 'someArchive' };
     component.ngOnInit();
-    expect(component.coffreAvenant).toBeDefined();
-    expect(component.coffreAvenant.avenantDate).toBeTruthy();
-    expect(component.coffreAvenant.client).toBe('TestClient');
+    expect(component.documentArchive).toBe('someArchive');
+
+    component.coffreContrat = { documentArchive: null };
+    component.ngOnInit();
+    expect(component.documentArchive).toBeNull();
   });
 
-  it('should load and process qualiteRepresentant data', () => {
+  it('should call refreshDataAuditContrat on init', () => {
+    spyOn(component, 'refreshDataAuditContrat');
     component.ngOnInit();
-    expect(mockQualiteRepresentantService.load).toHaveBeenCalled();
-    expect(component.selectItemQualRepEnum.length).toBe(1); // Only one visible item
-    expect(component.selectItemQualRepEnum[0].label).toBe('QualRep1');
+    expect(component.refreshDataAuditContrat).toHaveBeenCalled();
+  });
+
+  it('should make HTTP call in refreshDataAuditContrat', () => {
+    component.isAdmin = true;
+    component.isReadOnly = true;
+    component.coffreContrat = { id: 1 };
+    component.coffreLocationId = 123;
+
+    component.refreshDataAuditContrat();
+
+    const req = httpMock.expectOne('/api/coffres/location/123/contrats/histories');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ id: 1 }]);
+
+    expect(component.attachmentContracts).toBeDefined();
+  });
+
+  it('should open contract dialog on valid form submission', () => {
+    const dialogService = TestBed.inject(DialogService);
+    spyOn(dialogService, 'open').and.returnValue({
+      onClose: of({ contrat: { id: 1 } })
+    } as any);
+
+    component.coffreLocationId = 123;
+    component.client = 'Client Name';
+    component.adresse = 'Client Address';
+    component.coffreLocation = { personneMorale: true, site: 'Site Name' };
+    component.form = { valid: true } as any;
+
+    component.contratDialog();
+
+    expect(dialogService.open).toHaveBeenCalledWith(CoffreContratDialogComponent, jasmine.any(Object));
+    expect(component.coffreContrat).toBeDefined();
   });
 });
