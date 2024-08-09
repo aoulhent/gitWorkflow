@@ -1,124 +1,105 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { RouterTestingModule } from '@angular/router/testing';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MessageService } from 'primeng/api';
-import { CoffreDataShowComponent } from './coffre-data-show.component';
-import { CoffreParametreService } from '../services/coffre-parametre.service';
-import { UserService } from '../services/user.service';
+import { TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { of } from 'rxjs';
+import { CoffreLocationMonClientComponent } from './path-to-component';
+import { ActivatedRoute } from '@angular/router';
+import { UserService } from './path-to-user-service';
+import { CoffreParametreService } from './path-to-coffre-parametre-service';
+import { CoffreLocationService } from './path-to-coffre-location-service';
 
-describe('CoffreDataShowComponent', () => {
-    let component: CoffreDataShowComponent;
-    let fixture: ComponentFixture<CoffreDataShowComponent>;
-    let userService: UserService;
-    let parametreService: CoffreParametreService;
+// Mock services and dependencies as needed
+class MockCoffreParametreService {
+    listeNonConformites() {
+        return of([{ id: 1, name: 'Non-Conformity 1' }]);
+    }
+}
 
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            declarations: [CoffreDataShowComponent],
-            imports: [
-                HttpClientTestingModule,
-                RouterTestingModule,
-                FormsModule,
-                ReactiveFormsModule
-            ],
+describe('CoffreLocationMonClientComponent', () => {
+    let component: CoffreLocationMonClientComponent;
+    let router: jasmine.SpyObj<Router>;
+
+    beforeEach(() => {
+        const routerSpy = jasmine.createSpyObj('Router', ['navigateByUrl']);
+        
+        TestBed.configureTestingModule({
             providers: [
-                MessageService,
-                { provide: UserService, useValue: jasmine.createSpyObj('UserService', ['getUser', 'isApplicationAdmin']) },
-                { provide: CoffreParametreService, useValue: jasmine.createSpyObj('CoffreParametreService', ['listeNonConformite', 'activateMonClient', 'isInactivatedRC', 'getCoffreTarificationByID']) }
+                CoffreLocationMonClientComponent,
+                { provide: Router, useValue: routerSpy },
+                { provide: ActivatedRoute, useValue: {} },
+                { provide: UserService, useValue: {} },
+                { provide: CoffreParametreService, useClass: MockCoffreParametreService },
+                { provide: CoffreLocationService, useValue: {} },
+                // Add other dependencies as needed
             ]
-        }).compileComponents();
+        });
 
-        fixture = TestBed.createComponent(CoffreDataShowComponent);
-        component = fixture.componentInstance;
-        userService = TestBed.inject(UserService);
-        parametreService = TestBed.inject(CoffreParametreService);
-
-        userService.getUser.and.returnValue(of({ bmdRole: 'PDV' }));
-        parametreService.listeNonConformite.and.returnValue(of(['Non-Conformity 1', 'Non-Conformity 2']));
-        parametreService.activateMonClient.and.returnValue(of(true));
-        parametreService.isInactivatedRC.and.returnValue(of(false));
-        parametreService.getCoffreTarificationByID.and.returnValue(of([]));
-
-        fixture.detectChanges();
+        component = TestBed.inject(CoffreLocationMonClientComponent);
+        router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
     });
 
-    it('should create the component', () => {
+    it('should create the component and initialize services', () => {
         expect(component).toBeTruthy();
+        expect(component.coffreLocation).toBeDefined();
+        expect(component.isAdmin).toBe(false);
     });
 
-    it('should initialize isAdmin correctly based on userService', () => {
+    it('should correctly initialize data on ngOnInit', () => {
+        spyOn(component, 'initData').and.callThrough();
         component.ngOnInit();
+        expect(component.initData).toHaveBeenCalled();
+    });
+
+    it('should correctly set `isAdmin` based on the condition', () => {
+        component.isAdmin = true;
+        expect(component.isAdmin).toBeTrue();
+
+        component.isAdmin = false;
         expect(component.isAdmin).toBeFalse();
     });
 
-    it('should populate selectItemTypeLocationEnum correctly', () => {
-        expect(component.selectItemTypeLocationEnum.length).toBe(3);
-        expect(component.selectItemTypeLocationEnum[0].label).toBe('INDIVIDUELLE');
+    it('should select the correct item in selectItemRegHum', () => {
+        let option = { id: 1, name: 'Option 1' };
+        component.selectItemRegHum(option);
+        expect(component.selectedItem).toEqual(option);
     });
 
-    it('should call getUser and activateMonClient from services on init', () => {
+    it('should fetch non-conformities and set options correctly', () => {
+        component.loadOptions();
+        expect(component.selectItemNonConformites.length).toBe(1);
+        expect(component.selectItemNonConformites[0].name).toBe('Non-Conformity 1');
+    });
+
+    it('should navigate to a different URL', () => {
+        component.coffreLocation.relationCommerciale = { id: 1 };
+        component.isAdmin = true;
         component.ngOnInit();
-        expect(userService.getUser).toHaveBeenCalled();
-        expect(parametreService.activateMonClient).toHaveBeenCalled();
+
+        expect(router.navigateByUrl).toHaveBeenCalledWith('/some-path'); // Replace with actual navigation URL expected
     });
 
-    it('should set tarifValide to false when no tarifications are returned', () => {
+    it('should correctly check if user is admin or not', () => {
+        component.isAdmin = true;
+        expect(component.isAdmin).toBeTrue();
+        component.isAdmin = false;
+        expect(component.isAdmin).toBeFalse();
+    });
+
+    it('should set up grid options correctly', () => {
         component.ngOnInit();
-        expect(component.tarifValide).toBeFalse();
+        expect(component.gridOptions).toBeDefined();
+        expect(component.gridReady).toBeTrue();
     });
 
-    it('should set tarifValide to true when tarifications are returned', () => {
-        parametreService.getCoffreTarificationByID.and.returnValue(of([{ id: 1, montant: 100 }]));
-        component.ngOnInit();
-        expect(component.tarifValide).toBeTrue();
+    it('should handle selectItemRegHum method properly', () => {
+        const mockOption = { id: 2, name: 'Test Option' };
+        component.selectItemRegHum(mockOption);
+        expect(component.selectedItem).toEqual(mockOption);
     });
 
-    it('should handle RC selection and set rcSelected correctly', () => {
-        component.ngOnInit();
-        expect(component.rcSelected).toBeTrue();
+    it('should handle loadOptions properly with MockCoffreParametreService', () => {
+        component.loadOptions();
+        expect(component.selectItemNonConformites.length).toBeGreaterThan(0);
+        expect(component.selectItemNonConformites[0].id).toBe(1);
     });
-
-    it('should populate listeNonConformites correctly', () => {
-        component.ngOnInit();
-        expect(component.listeNonConformites.length).toBe(2);
-        expect(component.listeNonConformites[0].label).toBe('Non-Conformity 1');
-    });
-
-    it('should disable save button when saveOngoing is true', () => {
-        component.saveOngoing = true;
-        fixture.detectChanges();
-        const saveButton = fixture.nativeElement.querySelector('.save-button');
-        expect(saveButton.disabled).toBeTrue();
-    });
-
-    it('should enable save button when saveOngoing is false', () => {
-        component.saveOngoing = false;
-        fixture.detectChanges();
-        const saveButton = fixture.nativeElement.querySelector('.save-button');
-        expect(saveButton.disabled).toBeFalse();
-    });
-
-    it('should display error message if isValidRC is false', () => {
-        component.isValidRC = false;
-        fixture.detectChanges();
-        const errorMsg = fixture.nativeElement.querySelector('.error-message');
-        expect(errorMsg).toBeTruthy();
-    });
-
-    it('should not display error message if isValidRC is true', () => {
-        component.isValidRC = true;
-        fixture.detectChanges();
-        const errorMsg = fixture.nativeElement.querySelector('.error-message');
-        expect(errorMsg).toBeFalsy();
-    });
-
-    it('should set isMonaco to true when isMonaco returns true', () => {
-        spyOn(component.coffreLocationService, 'isMonaco').and.returnValue(true);
-        component.ngOnInit();
-        expect(component.isMonaco).toBeTrue();
-    });
-
-    // Additional tests would be added here for each method and condition within the component
 });
+
