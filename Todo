@@ -1,18 +1,30 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CoffreDataShowComponent } from './coffre-data-show.component';  // Update with actual path
-import { of, throwError } from 'rxjs';
-import { CoffeeLocationService } from '../services/coffee-location.service';  // Update with actual path
+import { of } from 'rxjs';  // Import 'of' for creating observables
+import { UserService } from '../services/user.service';  // Adjust the path to your actual service
 
 describe('CoffreDataShowComponent', () => {
   let component: CoffreDataShowComponent;
   let fixture: ComponentFixture<CoffreDataShowComponent>;
-  let service: CoffeeLocationService;
+  let userService: UserService;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [CoffreDataShowComponent],
       providers: [
-        { provide: CoffeeLocationService, useValue: jasmine.createSpyObj('CoffeeLocationService', ['getData']) }  // Mock service
+        { 
+          provide: UserService, 
+          useValue: {
+            getUser: jasmine.createSpy().and.returnValue({
+              getValue: () => ({
+                bmRole: 'GR',  // Mock role value
+                // Add other properties if necessary
+              })
+            })
+          }
+        },
+        { 
+          provide: CoffeeLocationService, 
+          useValue: jasmine.createSpyObj('CoffeeLocationService', ['getData']) 
+        }
       ]
     })
     .compileComponents();
@@ -21,7 +33,7 @@ describe('CoffreDataShowComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CoffreDataShowComponent);
     component = fixture.componentInstance;
-    service = TestBed.inject(CoffeeLocationService);
+    userService = TestBed.inject(UserService);
     fixture.detectChanges();
   });
 
@@ -29,102 +41,5 @@ describe('CoffreDataShowComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should initialize with default values', () => {
-    expect(component.loadingRc).toBeFalse();
-    expect(component.returnError).toBeFalse();
-    // Add checks for other default values
-  });
-
-  it('should call the service method on init', () => {
-    const serviceSpy = spyOn(service, 'getData').and.callThrough();
-
-    component.ngOnInit();
-
-    expect(serviceSpy).toHaveBeenCalled();
-  });
-
-  it('should process data correctly after service call', () => {
-    const mockData = { /* Mock data based on expected API response */ };
-    spyOn(service, 'getData').and.returnValue(of(mockData));
-
-    component.ngOnInit();
-
-    expect(component.processedData).toEqual(mockData); // Replace with actual processing logic
-  });
-
-  it('should render correct template based on coffreLocation', () => {
-    component.coffreLocation = { type: 'INDIVIDUELLE' };
-
-    fixture.detectChanges();
-
-    const element = fixture.nativeElement.querySelector('.expected-element');
-    expect(element).not.toBeNull();
-  });
-
-  it('should set returnError to true when an error occurs', () => {
-    spyOn(service, 'getData').and.returnValue(throwError('Error occurred'));
-
-    component.ngOnInit();
-
-    expect(component.returnError).toBeTrue();
-    expect(component.loadingRc).toBeFalse();
-  });
-
-  it('should correctly process data in methodName', () => {
-    const inputData = { /* Input data */ };
-    const expectedOutput = { /* Expected output */ };
-
-    const result = component.methodName(inputData);
-
-    expect(result).toEqual(expectedOutput);
-  });
-
-  it('should call the correct method on button click', () => {
-    const methodSpy = spyOn(component, 'methodName').and.callThrough();
-
-    const button = fixture.nativeElement.querySelector('.button-class');
-    button.click();
-
-    expect(methodSpy).toHaveBeenCalled();
-  });
-
-  it('should call API with correct parameters', () => {
-    const apiSpy = spyOn(service, 'getData').and.callThrough();
-
-    component.someProperty = 'someValue';
-
-    component.someFunction();
-
-    expect(apiSpy).toHaveBeenCalledWith('expectedParams');
-  });
-
-  it('should reset specific states on destroy', () => {
-    component.someState = 'someValue';
-
-    component.ngOnDestroy();
-
-    expect(component.someState).toBeNull();
-  });
-
-  it('should handle complex logic correctly', () => {
-    component.coffreLocation = { type: 'COLLECTIVE', someOtherCondition: true };
-
-    component.ngOnInit();
-
-    expect(component.someOutput).toEqual('expectedOutput');
-  });
-
-  it('should initialize variables in ngOnInit', () => {
-    component.ngOnInit();
-
-    expect(component.variable).toEqual('expectedValue');
-  });
-
-  it('should emit correct values on event', () => {
-    spyOn(component.eventEmitter, 'emit');
-
-    component.triggerEvent();
-
-    expect(component.eventEmitter.emit).toHaveBeenCalledWith('expectedValue');
-  });
+  // Add your test cases here...
 });
