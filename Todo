@@ -1,122 +1,153 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { ActivatedRoute, Router } from '@angular/router';
-import { of } from 'rxjs';
-import { DialogService } from 'primeng/dynamicdialog';
-import { UserService } from 'src/app/services/user.service';
-import { ErrorService } from 'src/app/services/error.service';
 import { ConfirmationService } from 'primeng/api';
-import { CoffreParametreService } from 'src/app/services/coffre-parametre.service';
-import { CoffreFormService } from 'src/app/services/coffre-form.service';
-import { CoffreCartonSignatureService } from 'src/app/services/coffre-carton-signature.service';
-import { CoffreDocumentService } from 'src/app/services/coffre-document.service';
-import { MessageService } from 'primeng/api';
-import { CoffreContratDialogComponent } from 'src/app/components/coffre-contrat-dialog/coffre-contrat-dialog.component';
-import { CoffreComponent } from './coffre.component';
+import { ErrorService } from 'src/app/services/error.service';
+import { CoffreFormService } from './coffre-form.service';
+import { HttpClient } from '@angular/common/http';
+import { FormGroup, FormControl } from '@angular/forms';
 
-describe('CoffreComponent', () => {
-  let component: CoffreComponent;
-  let fixture: ComponentFixture<CoffreComponent>;
+describe('CoffreFormService', () => {
+  let service: CoffreFormService;
   let httpMock: HttpTestingController;
-  let userServiceStub: Partial<UserService>;
+  let confirmationService: ConfirmationService;
 
-  beforeEach(async () => {
-    userServiceStub = {
-      isApplicationAdmin: jasmine.createSpy('isApplicationAdmin').and.returnValue(true)
-    };
-
-    await TestBed.configureTestingModule({
-      declarations: [CoffreComponent],
+  beforeEach(() => {
+    TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [
-        { provide: ActivatedRoute, useValue: { params: of({ id: 1 }) } },
-        { provide: Router, useValue: {} },
-        { provide: UserService, useValue: userServiceStub },
-        ErrorService,
-        ConfirmationService,
-        CoffreParametreService,
-        CoffreFormService,
-        CoffreCartonSignatureService,
-        CoffreDocumentService,
-        DialogService,
-        MessageService
-      ]
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(CoffreComponent);
-    component = fixture.componentInstance;
+      providers: [CoffreFormService, ConfirmationService, ErrorService]
+    });
+    service = TestBed.inject(CoffreFormService);
     httpMock = TestBed.inject(HttpTestingController);
+    confirmationService = TestBed.inject(ConfirmationService);
   });
 
   afterEach(() => {
     httpMock.verify();
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
+  it('should be created', () => {
+    expect(service).toBeTruthy();
   });
 
-  it('should initialize admin status on init', () => {
-    component.ngOnInit();
-    expect(component.isAdmin).toBeTrue();
+  it('should validate a dirty and invalid form', () => {
+    const formGroup = new FormGroup({
+      testControl: new FormControl('')
+    });
+    formGroup.markAsDirty();
+    formGroup.setErrors({ invalid: true });
+
+    spyOn(confirmationService, 'confirm');
+
+    const result = service.validateForm(formGroup);
+    expect(result).toBeFalse();
+    expect(confirmationService.confirm).toHaveBeenCalledWith({
+      message: service.labelMessageDirty,
+      acceptLabel: 'OK',
+      rejectVisible: false
+    });
   });
 
-  it('should set conforme status based on contract', () => {
-    component.coffreContrat = { conforme: true };
-    component.ngOnInit();
-    expect(component.conforme).toBe('true');
+  it('should validate an invalid form without marking it as dirty', () => {
+    const formGroup = new FormGroup({
+      testControl: new FormControl('')
+    });
+    formGroup.setErrors({ invalid: true });
 
-    component.coffreContrat = { conforme: false };
-    component.ngOnInit();
-    expect(component.conforme).toBe('false');
+    spyOn(confirmationService, 'confirm');
+
+    const result = service.validateForm(formGroup);
+    expect(result).toBeFalse();
+    expect(confirmationService.confirm).toHaveBeenCalledWith({
+      message: service.labelMessageInvalid,
+      header: 'Erreur de validation',
+      acceptLabel: 'OK',
+      rejectVisible: false
+    });
   });
 
-  it('should set documentArchive based on contract', () => {
-    component.coffreContrat = { documentArchive: 'someArchive' };
-    component.ngOnInit();
-    expect(component.documentArchive).toBe('someArchive');
+  it('should validate a valid form', () => {
+    const formGroup = new FormGroup({
+      testControl: new FormControl('value')
+    });
 
-    component.coffreContrat = { documentArchive: null };
-    component.ngOnInit();
-    expect(component.documentArchive).toBeNull();
+    const result = service.validateForm(formGroup);
+    expect(result).toBeTrue();
   });
 
-  it('should call refreshDataAuditContrat on init', () => {
-    spyOn(component, 'refreshDataAuditContrat');
-    component.ngOnInit();
-    expect(component.refreshDataAuditContrat).toHaveBeenCalled();
+  it('should return tooltip for a dirty form', () => {
+    const formGroup = new FormGroup({
+      testControl: new FormControl('value')
+    });
+    formGroup.markAsDirty();
+
+    const tooltip = service.getTooltip(formGroup, 'Default Tooltip', false);
+    expect(tooltip).toContain(service.labelMessageDirty);
   });
 
-  it('should make HTTP call in refreshDataAuditContrat', () => {
-    component.isAdmin = true;
-    component.isReadOnly = true;
-    component.coffreContrat = { id: 1 };
-    component.coffreLocationId = 123;
+  it('should return tooltip for an invalid form', () => {
+    const formGroup = new FormGroup({
+      testControl: new FormControl('')
+    });
+    formGroup.setErrors({ invalid: true });
 
-    component.refreshDataAuditContrat();
+    const tooltip = service.getTooltip(formGroup, 'Default Tooltip', true);
+    expect(tooltip).toContain(service.labelMessageInvalid);
+  });
 
-    const req = httpMock.expectOne('/api/coffres/location/123/contrats/histories');
+  it('should return default tooltip if form is valid', () => {
+    const formGroup = new FormGroup({
+      testControl: new FormControl('value')
+    });
+
+    const tooltip = service.getTooltip(formGroup, 'Default Tooltip', false);
+    expect(tooltip).toBe('Default Tooltip');
+  });
+
+  it('should download a file', () => {
+    const mockResponse = new Blob(['file content'], { type: 'application/octet-stream' });
+    spyOn(window, 'saveAs');
+
+    service.download(1);
+
+    const req = httpMock.expectOne('/api/coffres/attachments/1/download');
     expect(req.request.method).toBe('GET');
-    req.flush([{ id: 1 }]);
+    req.flush(mockResponse);
 
-    expect(component.attachmentContracts).toBeDefined();
+    expect(window.saveAs).toHaveBeenCalled();
   });
 
-  it('should open contract dialog on valid form submission', () => {
-    const dialogService = TestBed.inject(DialogService);
-    spyOn(dialogService, 'open').and.returnValue({
-      onClose: of({ contrat: { id: 1 } })
-    } as any);
+  it('should handle download error', () => {
+    spyOn(service.errorService, 'httpError');
 
-    component.coffreLocationId = 123;
-    component.client = 'Client Name';
-    component.adresse = 'Client Address';
-    component.coffreLocation = { personneMorale: true, site: 'Site Name' };
-    component.form = { valid: true } as any;
+    service.download(1);
 
-    component.contratDialog();
+    const req = httpMock.expectOne('/api/coffres/attachments/1/download');
+    req.error(new ErrorEvent('Network error'));
 
-    expect(dialogService.open).toHaveBeenCalledWith(CoffreContratDialogComponent, jasmine.any(Object));
-    expect(component.coffreContrat).toBeDefined();
+    expect(service.errorService.httpError).toHaveBeenCalled();
+  });
+
+  it('should download a file from URL', () => {
+    const mockResponse = new Blob(['file content'], { type: 'application/octet-stream' });
+    spyOn(window, 'saveAs');
+
+    service.downloadWithUrl('https://example.com/file');
+
+    const req = httpMock.expectOne('https://example.com/file');
+    expect(req.request.method).toBe('GET');
+    req.flush(mockResponse);
+
+    expect(window.saveAs).toHaveBeenCalled();
+  });
+
+  it('should handle download error from URL', () => {
+    spyOn(service.errorService, 'httpError');
+
+    service.downloadWithUrl('https://example.com/file');
+
+    const req = httpMock.expectOne('https://example.com/file');
+    req.error(new ErrorEvent('Network error'));
+
+    expect(service.errorService.httpError).toHaveBeenCalled();
   });
 });
