@@ -1,29 +1,44 @@
-import { of } from 'rxjs';  // Import 'of' for creating observables
-import { UserService } from '../services/user.service';  // Adjust the path to your actual service
+import { of } from 'rxjs';
+import { ActivatedRoute } from '@angular/router';
+import { UserService } from '../services/user.service';  // Adjust the path
+import { CoffeeLocationService } from '../services/coffee-location.service'; // Adjust the path
 
 describe('CoffreDataShowComponent', () => {
   let component: CoffreDataShowComponent;
   let fixture: ComponentFixture<CoffreDataShowComponent>;
   let userService: UserService;
+  let coffeeLocationService: CoffeeLocationService;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       declarations: [CoffreDataShowComponent],
       providers: [
         { 
+          provide: ActivatedRoute, 
+          useValue: {
+            snapshot: {
+              data: {
+                coffreData: { /* mock your coffreData object here */ }
+              }
+            }
+          }
+        },
+        { 
           provide: UserService, 
           useValue: {
             getUser: jasmine.createSpy().and.returnValue({
               getValue: () => ({
-                bmRole: 'GR',  // Mock role value
-                // Add other properties if necessary
+                bmRole: 'GR',
               })
-            })
+            }),
+            isApplicationAdmin: jasmine.createSpy().and.returnValue(true)
           }
         },
         { 
           provide: CoffeeLocationService, 
-          useValue: jasmine.createSpyObj('CoffeeLocationService', ['getData']) 
+          useValue: {
+            getData: jasmine.createSpy().and.returnValue(of({ /* mock `coffreData` object */ }))
+          }
         }
       ]
     })
@@ -34,6 +49,8 @@ describe('CoffreDataShowComponent', () => {
     fixture = TestBed.createComponent(CoffreDataShowComponent);
     component = fixture.componentInstance;
     userService = TestBed.inject(UserService);
+    coffeeLocationService = TestBed.inject(CoffeeLocationService);
+
     fixture.detectChanges();
   });
 
@@ -41,5 +58,5 @@ describe('CoffreDataShowComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  // Add your test cases here...
+  // Additional tests...
 });
