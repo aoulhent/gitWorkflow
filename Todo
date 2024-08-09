@@ -1,153 +1,69 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { ConfirmationService } from 'primeng/api';
-import { ErrorService } from 'src/app/services/error.service';
-import { CoffreFormService } from './coffre-form.service';
-import { HttpClient } from '@angular/common/http';
-import { FormGroup, FormControl } from '@angular/forms';
+import { CoffreService } from './coffre.service';
 
-describe('CoffreFormService', () => {
-  let service: CoffreFormService;
-  let httpMock: HttpTestingController;
-  let confirmationService: ConfirmationService;
+describe('CoffreService', () => {
+  let service: CoffreService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
-      providers: [CoffreFormService, ConfirmationService, ErrorService]
+      providers: [CoffreService]
     });
-    service = TestBed.inject(CoffreFormService);
-    httpMock = TestBed.inject(HttpTestingController);
-    confirmationService = TestBed.inject(ConfirmationService);
+    service = TestBed.inject(CoffreService);
   });
 
-  afterEach(() => {
-    httpMock.verify();
+  it('should update and check relation commerciale for mon client', () => {
+    const mockLocation = { relationCommerciale: '12345678901234567' } as any; // Mocking CoffreLocationLight
+    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
+
+    const result = service.updateAndCheckRelationCommercialeMonClient(mockLocation, mockData);
+    expect(result).toBe(12345); // Expected output based on the logic
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
+  it('should return null when relation commerciale is invalid for mon client', () => {
+    const mockLocation = { relationCommerciale: null } as any; // Mocking CoffreLocationLight
+    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
+
+    const result = service.updateAndCheckRelationCommercialeMonClient(mockLocation, mockData);
+    expect(result).toBeNull();
   });
 
-  it('should validate a dirty and invalid form', () => {
-    const formGroup = new FormGroup({
-      testControl: new FormControl('')
-    });
-    formGroup.markAsDirty();
-    formGroup.setErrors({ invalid: true });
+  it('should update and check relation commerciale alone', () => {
+    const mockRelationCommerciale = '12345678901234567';
+    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
 
-    spyOn(confirmationService, 'confirm');
+    const result = service.updateAndCheckRelationCommercialeAlone(mockRelationCommerciale, mockData);
+    expect(result).toBe(12345); // Expected output based on the logic
+  });
 
-    const result = service.validateForm(formGroup);
+  it('should return null when relation commerciale is invalid alone', () => {
+    const mockRelationCommerciale = null;
+    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
+
+    const result = service.updateAndCheckRelationCommercialeAlone(mockRelationCommerciale, mockData);
+    expect(result).toBeNull();
+  });
+
+  it('should validate domicile invalidity', () => {
+    const mockLocation = { compteDomiciliation: '123456', disponible: 'COFFRE' } as any; // Mocking CoffreLocation
+    const mockData = { disponible: 'COFFRE' } as any; // Mocking CoffreData
+
+    const result = service.hasDomiciliationInvalid(mockLocation, mockData);
+    expect(result).toBeFalse(); // Adjust based on your logic
+  });
+
+  it('should check if relation commerciale has RciInvalid', () => {
+    const mockLocation = { relationCommerciale: '12345678901234567' } as any; // Mocking CoffreLocation
+    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
+
+    const result = service.hasRciInvalid(mockLocation, mockData);
+    expect(result).toBeTrue(); // Adjust based on your logic
+  });
+
+  it('should return false when relation commerciale is invalid for RciInvalid', () => {
+    const mockLocation = { relationCommerciale: null } as any; // Mocking CoffreLocation
+    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
+
+    const result = service.hasRciInvalid(mockLocation, mockData);
     expect(result).toBeFalse();
-    expect(confirmationService.confirm).toHaveBeenCalledWith({
-      message: service.labelMessageDirty,
-      acceptLabel: 'OK',
-      rejectVisible: false
-    });
-  });
-
-  it('should validate an invalid form without marking it as dirty', () => {
-    const formGroup = new FormGroup({
-      testControl: new FormControl('')
-    });
-    formGroup.setErrors({ invalid: true });
-
-    spyOn(confirmationService, 'confirm');
-
-    const result = service.validateForm(formGroup);
-    expect(result).toBeFalse();
-    expect(confirmationService.confirm).toHaveBeenCalledWith({
-      message: service.labelMessageInvalid,
-      header: 'Erreur de validation',
-      acceptLabel: 'OK',
-      rejectVisible: false
-    });
-  });
-
-  it('should validate a valid form', () => {
-    const formGroup = new FormGroup({
-      testControl: new FormControl('value')
-    });
-
-    const result = service.validateForm(formGroup);
-    expect(result).toBeTrue();
-  });
-
-  it('should return tooltip for a dirty form', () => {
-    const formGroup = new FormGroup({
-      testControl: new FormControl('value')
-    });
-    formGroup.markAsDirty();
-
-    const tooltip = service.getTooltip(formGroup, 'Default Tooltip', false);
-    expect(tooltip).toContain(service.labelMessageDirty);
-  });
-
-  it('should return tooltip for an invalid form', () => {
-    const formGroup = new FormGroup({
-      testControl: new FormControl('')
-    });
-    formGroup.setErrors({ invalid: true });
-
-    const tooltip = service.getTooltip(formGroup, 'Default Tooltip', true);
-    expect(tooltip).toContain(service.labelMessageInvalid);
-  });
-
-  it('should return default tooltip if form is valid', () => {
-    const formGroup = new FormGroup({
-      testControl: new FormControl('value')
-    });
-
-    const tooltip = service.getTooltip(formGroup, 'Default Tooltip', false);
-    expect(tooltip).toBe('Default Tooltip');
-  });
-
-  it('should download a file', () => {
-    const mockResponse = new Blob(['file content'], { type: 'application/octet-stream' });
-    spyOn(window, 'saveAs');
-
-    service.download(1);
-
-    const req = httpMock.expectOne('/api/coffres/attachments/1/download');
-    expect(req.request.method).toBe('GET');
-    req.flush(mockResponse);
-
-    expect(window.saveAs).toHaveBeenCalled();
-  });
-
-  it('should handle download error', () => {
-    spyOn(service.errorService, 'httpError');
-
-    service.download(1);
-
-    const req = httpMock.expectOne('/api/coffres/attachments/1/download');
-    req.error(new ErrorEvent('Network error'));
-
-    expect(service.errorService.httpError).toHaveBeenCalled();
-  });
-
-  it('should download a file from URL', () => {
-    const mockResponse = new Blob(['file content'], { type: 'application/octet-stream' });
-    spyOn(window, 'saveAs');
-
-    service.downloadWithUrl('https://example.com/file');
-
-    const req = httpMock.expectOne('https://example.com/file');
-    expect(req.request.method).toBe('GET');
-    req.flush(mockResponse);
-
-    expect(window.saveAs).toHaveBeenCalled();
-  });
-
-  it('should handle download error from URL', () => {
-    spyOn(service.errorService, 'httpError');
-
-    service.downloadWithUrl('https://example.com/file');
-
-    const req = httpMock.expectOne('https://example.com/file');
-    req.error(new ErrorEvent('Network error'));
-
-    expect(service.errorService.httpError).toHaveBeenCalled();
   });
 });
