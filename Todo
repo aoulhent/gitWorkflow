@@ -1,69 +1,130 @@
-import { TestBed } from '@angular/core/testing';
-import { CoffreService } from './coffre.service';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { CoffreDataShowComponent } from './coffre-data-show.component';  // Update with actual path
+import { of, throwError } from 'rxjs';
+import { CoffeeLocationService } from '../services/coffee-location.service';  // Update with actual path
 
-describe('CoffreService', () => {
-  let service: CoffreService;
+describe('CoffreDataShowComponent', () => {
+  let component: CoffreDataShowComponent;
+  let fixture: ComponentFixture<CoffreDataShowComponent>;
+  let service: CoffeeLocationService;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [CoffreDataShowComponent],
+      providers: [
+        { provide: CoffeeLocationService, useValue: jasmine.createSpyObj('CoffeeLocationService', ['getData']) }  // Mock service
+      ]
+    })
+    .compileComponents();
+  });
 
   beforeEach(() => {
-    TestBed.configureTestingModule({
-      providers: [CoffreService]
-    });
-    service = TestBed.inject(CoffreService);
+    fixture = TestBed.createComponent(CoffreDataShowComponent);
+    component = fixture.componentInstance;
+    service = TestBed.inject(CoffeeLocationService);
+    fixture.detectChanges();
   });
 
-  it('should update and check relation commerciale for mon client', () => {
-    const mockLocation = { relationCommerciale: '12345678901234567' } as any; // Mocking CoffreLocationLight
-    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
-
-    const result = service.updateAndCheckRelationCommercialeMonClient(mockLocation, mockData);
-    expect(result).toBe(12345); // Expected output based on the logic
+  it('should create', () => {
+    expect(component).toBeTruthy();
   });
 
-  it('should return null when relation commerciale is invalid for mon client', () => {
-    const mockLocation = { relationCommerciale: null } as any; // Mocking CoffreLocationLight
-    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
-
-    const result = service.updateAndCheckRelationCommercialeMonClient(mockLocation, mockData);
-    expect(result).toBeNull();
+  it('should initialize with default values', () => {
+    expect(component.loadingRc).toBeFalse();
+    expect(component.returnError).toBeFalse();
+    // Add checks for other default values
   });
 
-  it('should update and check relation commerciale alone', () => {
-    const mockRelationCommerciale = '12345678901234567';
-    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
+  it('should call the service method on init', () => {
+    const serviceSpy = spyOn(service, 'getData').and.callThrough();
 
-    const result = service.updateAndCheckRelationCommercialeAlone(mockRelationCommerciale, mockData);
-    expect(result).toBe(12345); // Expected output based on the logic
+    component.ngOnInit();
+
+    expect(serviceSpy).toHaveBeenCalled();
   });
 
-  it('should return null when relation commerciale is invalid alone', () => {
-    const mockRelationCommerciale = null;
-    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
+  it('should process data correctly after service call', () => {
+    const mockData = { /* Mock data based on expected API response */ };
+    spyOn(service, 'getData').and.returnValue(of(mockData));
 
-    const result = service.updateAndCheckRelationCommercialeAlone(mockRelationCommerciale, mockData);
-    expect(result).toBeNull();
+    component.ngOnInit();
+
+    expect(component.processedData).toEqual(mockData); // Replace with actual processing logic
   });
 
-  it('should validate domicile invalidity', () => {
-    const mockLocation = { compteDomiciliation: '123456', disponible: 'COFFRE' } as any; // Mocking CoffreLocation
-    const mockData = { disponible: 'COFFRE' } as any; // Mocking CoffreData
+  it('should render correct template based on coffreLocation', () => {
+    component.coffreLocation = { type: 'INDIVIDUELLE' };
 
-    const result = service.hasDomiciliationInvalid(mockLocation, mockData);
-    expect(result).toBeFalse(); // Adjust based on your logic
+    fixture.detectChanges();
+
+    const element = fixture.nativeElement.querySelector('.expected-element');
+    expect(element).not.toBeNull();
   });
 
-  it('should check if relation commerciale has RciInvalid', () => {
-    const mockLocation = { relationCommerciale: '12345678901234567' } as any; // Mocking CoffreLocation
-    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
+  it('should set returnError to true when an error occurs', () => {
+    spyOn(service, 'getData').and.returnValue(throwError('Error occurred'));
 
-    const result = service.hasRciInvalid(mockLocation, mockData);
-    expect(result).toBeTrue(); // Adjust based on your logic
+    component.ngOnInit();
+
+    expect(component.returnError).toBeTrue();
+    expect(component.loadingRc).toBeFalse();
   });
 
-  it('should return false when relation commerciale is invalid for RciInvalid', () => {
-    const mockLocation = { relationCommerciale: null } as any; // Mocking CoffreLocation
-    const mockData = { pdv: { number: 12345 } } as any; // Mocking CoffreData
+  it('should correctly process data in methodName', () => {
+    const inputData = { /* Input data */ };
+    const expectedOutput = { /* Expected output */ };
 
-    const result = service.hasRciInvalid(mockLocation, mockData);
-    expect(result).toBeFalse();
+    const result = component.methodName(inputData);
+
+    expect(result).toEqual(expectedOutput);
+  });
+
+  it('should call the correct method on button click', () => {
+    const methodSpy = spyOn(component, 'methodName').and.callThrough();
+
+    const button = fixture.nativeElement.querySelector('.button-class');
+    button.click();
+
+    expect(methodSpy).toHaveBeenCalled();
+  });
+
+  it('should call API with correct parameters', () => {
+    const apiSpy = spyOn(service, 'getData').and.callThrough();
+
+    component.someProperty = 'someValue';
+
+    component.someFunction();
+
+    expect(apiSpy).toHaveBeenCalledWith('expectedParams');
+  });
+
+  it('should reset specific states on destroy', () => {
+    component.someState = 'someValue';
+
+    component.ngOnDestroy();
+
+    expect(component.someState).toBeNull();
+  });
+
+  it('should handle complex logic correctly', () => {
+    component.coffreLocation = { type: 'COLLECTIVE', someOtherCondition: true };
+
+    component.ngOnInit();
+
+    expect(component.someOutput).toEqual('expectedOutput');
+  });
+
+  it('should initialize variables in ngOnInit', () => {
+    component.ngOnInit();
+
+    expect(component.variable).toEqual('expectedValue');
+  });
+
+  it('should emit correct values on event', () => {
+    spyOn(component.eventEmitter, 'emit');
+
+    component.triggerEvent();
+
+    expect(component.eventEmitter.emit).toHaveBeenCalledWith('expectedValue');
   });
 });
