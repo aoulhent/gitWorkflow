@@ -1,83 +1,52 @@
-describe('YourComponent', () => {
-  let component: YourComponent;
-  let fixture: ComponentFixture<YourComponent>;
-  let mockCoffreCartonSignatureService: any;
-  let mockCoffreDocumentService: any;
-  let mockHttp: any;
-  let mockErrorService: any;
-  let mockDialogService: any;
-  let mockGridOptions: any;
+it('should handle visibility correctly', () => {
+    const mockAvenant = { id: 123, visible: false } as any; // Replace 'any' with actual type
+    
+    spyOn(component.errorService, 'httpError');
+    httpClient.put.and.returnValue(of({}));
 
-  beforeEach(() => {
-    mockCoffreCartonSignatureService = jasmine.createSpyObj('CoffreCartonSignatureService', ['loadByLocation']);
-    mockCoffreDocumentService = jasmine.createSpyObj('CoffreDocumentService', ['loadByLocation']);
-    mockHttp = jasmine.createSpyObj('HttpClient', ['put']);
-    mockErrorService = jasmine.createSpyObj('ErrorService', ['httpError']);
-    mockDialogService = jasmine.createSpyObj('DialogService', ['open']);
-    mockGridOptions = { api: jasmine.createSpyObj('api', ['setRowData', 'refreshRows']) };
+    component.setVisible(mockAvenant, true);
+    expect(httpClient.put).toHaveBeenCalledWith(
+        `/api/coffre/avenant/${mockAvenant.id}/enable`,
+        mockAvenant
+    );
 
-    TestBed.configureTestingModule({
-      declarations: [YourComponent],
-      providers: [
-        { provide: CoffreCartonSignatureService, useValue: mockCoffreCartonSignatureService },
-        { provide: CoffreDocumentService, useValue: mockCoffreDocumentService },
-        { provide: HttpClient, useValue: mockHttp },
-        { provide: ErrorService, useValue: mockErrorService },
-        { provide: DialogService, useValue: mockDialogService }
-      ]
-    });
+    httpClient.put.and.returnValue(throwError(() => new Error('Error')));
 
-    fixture = TestBed.createComponent(YourComponent);
-    component = fixture.componentInstance;
-    component.gridOptions = mockGridOptions;
-  });
-
-  it('should call refreshData and createColumnDefs on ngOnInit', () => {
-    spyOn(component, 'refreshData');
-    spyOn(component, 'createColumnDefs').and.returnValue([]);
-    component.ngOnInit();
-    expect(component.refreshData).toHaveBeenCalled();
-    expect(component.gridOptions.columnDefs).toEqual([]);
-  });
-
-  it('should remove invisible documents for admin in refreshData', () => {
-    component.data = [
-      { visible: true },
-      { visible: false }
-    ] as CoffreAvenant[];
-    spyOn(component, 'isAdmin').and.returnValue(true);
-
-    component.refreshData();
-
-    expect(component.data.length).toBe(1);
-  });
-
-  it('should call loadByLocation and update CoffreCartonSignatures in refreshAvenant', () => {
-    const mockSignatures = [{}] as CoffreCartonSignature[];
-    mockCoffreCartonSignatureService.loadByLocation.and.returnValue(of(mockSignatures));
-
-    component.refreshAvenant(1);
-
-    expect(component.coffreLocation.coffreCartonSignatures).toEqual(mockSignatures);
-  });
-
-  it('should call loadByLocation and update CoffreDocuments in refreshDocument', () => {
-    const mockDocuments = [{}] as CoffreDocument[];
-    mockCoffreDocumentService.loadByLocation.and.returnValue(of(mockDocuments));
-
-    component.refreshDocument(1);
-
-    expect(component.coffreLocation.coffreDocuments).toEqual(mockDocuments);
-  });
-
-  it('should call http.put with the correct URL and payload in setVisible', () => {
-    const mockAvenant = { id: 1, visible: true } as CoffreAvenant;
-
-    component.setVisible(mockAvenant);
-
-    expect(mockHttp.put).toHaveBeenCalledWith('/api/coffre/avenant', { 'id': 1, 'disable': mockAvenant });
-  });
-
-  // More tests based on the dialog logic can be added here...
-
+    component.setVisible(mockAvenant, false);
+    expect(component.errorService.httpError).toHaveBeenCalled();
 });
+it('should open the correct dialog with expected data', () => {
+    spyOn(component.dialogService, 'open').and.callThrough();
+
+    const mockAvenant = { id: 1, data: {} };
+    component.avenantDialog(mockAvenant);
+
+    expect(component.dialogService.open).toHaveBeenCalledWith(CoffreAvenantDialogComponent, {
+        data: { avenantId: mockAvenant.id, data: mockAvenant.data }
+    });
+});
+
+it('should handle error in refreshAvenant', () => {
+    spyOn(component.errorService, 'httpError');
+
+    const errorResponse = new Error('Test Error');
+    spyOn(component.coffreAvenantSignatureService, 'loadByLocation').and.returnValue(throwError(() => errorResponse));
+    
+    component.refreshAvenant(123);
+    
+    expect(component.errorService.httpError).toHaveBeenCalledWith(errorResponse);
+});
+
+it('should handle non-conforme correctly', () => {
+    const mockAvenant = { conforme: true };
+
+    component.checkConformity(mockAvenant);
+
+    expect(component.conforme).toBe('true');
+
+    mockAvenant.conforme = false;
+    component.checkConformity(mockAvenant);
+
+    expect(component.conforme).toBe('false');
+});
+
