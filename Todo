@@ -1,105 +1,83 @@
-import { TestBed } from '@angular/core/testing';
-import { Router } from '@angular/router';
-import { of } from 'rxjs';
-import { CoffreLocationMonClientComponent } from './path-to-component';
-import { ActivatedRoute } from '@angular/router';
-import { UserService } from './path-to-user-service';
-import { CoffreParametreService } from './path-to-coffre-parametre-service';
-import { CoffreLocationService } from './path-to-coffre-location-service';
+describe('YourComponent', () => {
+  let component: YourComponent;
+  let fixture: ComponentFixture<YourComponent>;
+  let mockCoffreCartonSignatureService: any;
+  let mockCoffreDocumentService: any;
+  let mockHttp: any;
+  let mockErrorService: any;
+  let mockDialogService: any;
+  let mockGridOptions: any;
 
-// Mock services and dependencies as needed
-class MockCoffreParametreService {
-    listeNonConformites() {
-        return of([{ id: 1, name: 'Non-Conformity 1' }]);
-    }
-}
+  beforeEach(() => {
+    mockCoffreCartonSignatureService = jasmine.createSpyObj('CoffreCartonSignatureService', ['loadByLocation']);
+    mockCoffreDocumentService = jasmine.createSpyObj('CoffreDocumentService', ['loadByLocation']);
+    mockHttp = jasmine.createSpyObj('HttpClient', ['put']);
+    mockErrorService = jasmine.createSpyObj('ErrorService', ['httpError']);
+    mockDialogService = jasmine.createSpyObj('DialogService', ['open']);
+    mockGridOptions = { api: jasmine.createSpyObj('api', ['setRowData', 'refreshRows']) };
 
-describe('CoffreLocationMonClientComponent', () => {
-    let component: CoffreLocationMonClientComponent;
-    let router: jasmine.SpyObj<Router>;
-
-    beforeEach(() => {
-        const routerSpy = jasmine.createSpyObj('Router', ['navigateByUrl']);
-        
-        TestBed.configureTestingModule({
-            providers: [
-                CoffreLocationMonClientComponent,
-                { provide: Router, useValue: routerSpy },
-                { provide: ActivatedRoute, useValue: {} },
-                { provide: UserService, useValue: {} },
-                { provide: CoffreParametreService, useClass: MockCoffreParametreService },
-                { provide: CoffreLocationService, useValue: {} },
-                // Add other dependencies as needed
-            ]
-        });
-
-        component = TestBed.inject(CoffreLocationMonClientComponent);
-        router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+    TestBed.configureTestingModule({
+      declarations: [YourComponent],
+      providers: [
+        { provide: CoffreCartonSignatureService, useValue: mockCoffreCartonSignatureService },
+        { provide: CoffreDocumentService, useValue: mockCoffreDocumentService },
+        { provide: HttpClient, useValue: mockHttp },
+        { provide: ErrorService, useValue: mockErrorService },
+        { provide: DialogService, useValue: mockDialogService }
+      ]
     });
 
-    it('should create the component and initialize services', () => {
-        expect(component).toBeTruthy();
-        expect(component.coffreLocation).toBeDefined();
-        expect(component.isAdmin).toBe(false);
-    });
+    fixture = TestBed.createComponent(YourComponent);
+    component = fixture.componentInstance;
+    component.gridOptions = mockGridOptions;
+  });
 
-    it('should correctly initialize data on ngOnInit', () => {
-        spyOn(component, 'initData').and.callThrough();
-        component.ngOnInit();
-        expect(component.initData).toHaveBeenCalled();
-    });
+  it('should call refreshData and createColumnDefs on ngOnInit', () => {
+    spyOn(component, 'refreshData');
+    spyOn(component, 'createColumnDefs').and.returnValue([]);
+    component.ngOnInit();
+    expect(component.refreshData).toHaveBeenCalled();
+    expect(component.gridOptions.columnDefs).toEqual([]);
+  });
 
-    it('should correctly set `isAdmin` based on the condition', () => {
-        component.isAdmin = true;
-        expect(component.isAdmin).toBeTrue();
+  it('should remove invisible documents for admin in refreshData', () => {
+    component.data = [
+      { visible: true },
+      { visible: false }
+    ] as CoffreAvenant[];
+    spyOn(component, 'isAdmin').and.returnValue(true);
 
-        component.isAdmin = false;
-        expect(component.isAdmin).toBeFalse();
-    });
+    component.refreshData();
 
-    it('should select the correct item in selectItemRegHum', () => {
-        let option = { id: 1, name: 'Option 1' };
-        component.selectItemRegHum(option);
-        expect(component.selectedItem).toEqual(option);
-    });
+    expect(component.data.length).toBe(1);
+  });
 
-    it('should fetch non-conformities and set options correctly', () => {
-        component.loadOptions();
-        expect(component.selectItemNonConformites.length).toBe(1);
-        expect(component.selectItemNonConformites[0].name).toBe('Non-Conformity 1');
-    });
+  it('should call loadByLocation and update CoffreCartonSignatures in refreshAvenant', () => {
+    const mockSignatures = [{}] as CoffreCartonSignature[];
+    mockCoffreCartonSignatureService.loadByLocation.and.returnValue(of(mockSignatures));
 
-    it('should navigate to a different URL', () => {
-        component.coffreLocation.relationCommerciale = { id: 1 };
-        component.isAdmin = true;
-        component.ngOnInit();
+    component.refreshAvenant(1);
 
-        expect(router.navigateByUrl).toHaveBeenCalledWith('/some-path'); // Replace with actual navigation URL expected
-    });
+    expect(component.coffreLocation.coffreCartonSignatures).toEqual(mockSignatures);
+  });
 
-    it('should correctly check if user is admin or not', () => {
-        component.isAdmin = true;
-        expect(component.isAdmin).toBeTrue();
-        component.isAdmin = false;
-        expect(component.isAdmin).toBeFalse();
-    });
+  it('should call loadByLocation and update CoffreDocuments in refreshDocument', () => {
+    const mockDocuments = [{}] as CoffreDocument[];
+    mockCoffreDocumentService.loadByLocation.and.returnValue(of(mockDocuments));
 
-    it('should set up grid options correctly', () => {
-        component.ngOnInit();
-        expect(component.gridOptions).toBeDefined();
-        expect(component.gridReady).toBeTrue();
-    });
+    component.refreshDocument(1);
 
-    it('should handle selectItemRegHum method properly', () => {
-        const mockOption = { id: 2, name: 'Test Option' };
-        component.selectItemRegHum(mockOption);
-        expect(component.selectedItem).toEqual(mockOption);
-    });
+    expect(component.coffreLocation.coffreDocuments).toEqual(mockDocuments);
+  });
 
-    it('should handle loadOptions properly with MockCoffreParametreService', () => {
-        component.loadOptions();
-        expect(component.selectItemNonConformites.length).toBeGreaterThan(0);
-        expect(component.selectItemNonConformites[0].id).toBe(1);
-    });
+  it('should call http.put with the correct URL and payload in setVisible', () => {
+    const mockAvenant = { id: 1, visible: true } as CoffreAvenant;
+
+    component.setVisible(mockAvenant);
+
+    expect(mockHttp.put).toHaveBeenCalledWith('/api/coffre/avenant', { 'id': 1, 'disable': mockAvenant });
+  });
+
+  // More tests based on the dialog logic can be added here...
+
 });
-
