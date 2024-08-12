@@ -6,73 +6,132 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
-import javax.persistence.TypedQuery;
+import java.util.Collections;
+import java.util.List;
 
 @ExtendWith(MockitoExtension.class)
 class CoffreUtilServiceTest {
 
     @Mock
-    private EntityManager entityManager;
-
-    @Mock
     private UserService userService;
 
     @Mock
-    private User user;
+    private CoffreContrat coffreContrat;
+
+    @Mock
+    private CoffreData coffreData;
+
+    @Mock
+    private Pdv pdv;
 
     @InjectMocks
     private CoffreUtilService coffreUtilService;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        
-        when(userService.getCurrentUser()).thenReturn(user);
-        when(user.getBmdRold()).thenReturn("mockRole");
-        
-        ReflectionTestUtils.setField(coffreUtilService, "userService", userService);
+        when(userService.getCurrentUser()).thenReturn(mock(User.class));
     }
 
     @Test
-    void testLoadCoffreData_Success() {
-        // Arrange
-        CriteriaBuilder cb = mock(CriteriaBuilder.class);
-        CriteriaQuery<CoffreData> cq = mock(CriteriaQuery.class);
-        Root<CoffreData> root = mock(Root.class);
-        TypedQuery<CoffreData> typedQuery = mock(TypedQuery.class);
+    void testIsPlaceHolderContrat_case_CA() {
+        when(coffreContrat.getClient()).thenReturn("Client Name");
 
-        when(entityManager.getCriteriaBuilder()).thenReturn(cb);
-        when(cb.createQuery(CoffreData.class)).thenReturn(cq);
-        when(cq.from(CoffreData.class)).thenReturn(root);
+        String result = ReflectionTestUtils.invokeMethod(coffreUtilService, "isPlaceHolderContrat", "C_AA", coffreContrat, coffreData);
 
-        // Mock the behavior of root to return a specific path when get() is called
-        when(root.get("id")).thenReturn(mock(javax.persistence.criteria.Path.class));  // Adjust "id" to match your criteria
-        when(root.get("pdv")).thenReturn(mock(javax.persistence.criteria.Path.class)); // Ensure "pdv" is mocked as well
+        assertEquals("Client Name", result);
+    }
 
-        Predicate predicate = mock(Predicate.class);
-        when(cb.equal(root.get("id"), 1L)).thenReturn(predicate);
-        when(cq.select(root)).thenReturn(cq);
-        when(cq.where(predicate)).thenReturn(cq);
+    @Test
+    void testIsPlaceHolderContrat_case_CB_emptyList() {
+        when(coffreData.getCoffreLocation()).thenReturn(null);
 
-        when(entityManager.createQuery(cq)).thenReturn(typedQuery);
-        when(typedQuery.getSingleResult()).thenReturn(mock(CoffreData.class));
+        String result = ReflectionTestUtils.invokeMethod(coffreUtilService, "isPlaceHolderContrat", "C_AB", coffreContrat, coffreData);
 
-        // Act
-        CoffreData result = coffreUtilService.loadCoffreData(1L);
+        assertTrue(result.isEmpty());
+    }
 
-        // Assert
+    @Test
+    void testIsPlaceHolderContrat_case_CE_withValue() {
+        when(coffreContrat.getDatePremierReglement()).thenReturn(new Date());
+        when(coffreData.getCoffreLocation()).thenReturn(mock(CoffreLocation.class));
+        when(coffreData.getCoffreLocation().getDatePremierReglement()).thenReturn(new Date());
+
+        String result = ReflectionTestUtils.invokeMethod(coffreUtilService, "isPlaceHolderContrat", "C_E", coffreContrat, coffreData);
+
         assertNotNull(result);
-        verify(entityManager, times(1)).createQuery(cq);
-        verify(typedQuery, times(1)).getSingleResult();
-        verify(userService, times(1)).getCurrentUser();
-        verify(user, times(1)).getBmdRold();
+    }
+
+    @Test
+    void testIsPlaceHolderContrat_case_CB_listWithValues() {
+        CoffreCoLocataire col = mock(CoffreCoLocataire.class);
+        when(col.getNomPrenom()).thenReturn("John Doe");
+
+        CoffreLocation location = mock(CoffreLocation.class);
+        when(location.getCoffreColocataires()).thenReturn(Collections.singletonList(col));
+        when(coffreData.getCoffreLocation()).thenReturn(location);
+
+        String result = ReflectionTestUtils.invokeMethod(coffreUtilService, "isPlaceHolderContrat", "C_CB", coffreContrat, coffreData);
+
+        assertEquals("John Doe", result);
+    }
+
+    @Test
+    void testIsPlaceHolderContrat_caseUserFullName() {
+        User user = mock(User.class);
+        when(user.getFullnameAndUsername()).thenReturn("User Name");
+        when(userService.getCurrentUser()).thenReturn(user);
+
+        String result = ReflectionTestUtils.invokeMethod(coffreUtilService, "isPlaceHolderContrat", "C_BF", coffreContrat, coffreData);
+
+        assertEquals("User Name", result);
+    }
+
+    @Test
+    void testIsPlaceHolderContrat_caseWithDefault() {
+        String result = ReflectionTestUtils.invokeMethod(coffreUtilService, "isPlaceHolderContrat", "UNKNOWN", coffreContrat, coffreData);
+
+        assertEquals("", result);
+    }
+
+    @Test
+    void testIsPlaceHolderContrat_caseC_BA_handlesNull() {
+        when(coffreData.getCoffreLocation()).thenReturn(null);
+
+        String result = ReflectionTestUtils.invokeMethod(coffreUtilService, "isPlaceHolderContrat", "C_BA", coffreContrat, coffreData);
+
+        assertEquals("", result);
+    }
+
+    @Test
+    void testIsPlaceHolderContrat_caseDateFormat() {
+        when(coffreContrat.getContratDate()).thenReturn(new Date());
+
+        String result = ReflectionTestUtils.invokeMethod(coffreUtilService, "isPlaceHolderContrat", "C_BD", coffreContrat, coffreData);
+
+        assertNotNull(result);
+    }
+    
+    @Test
+    void testIsMonaco_shouldReturnTrue() throws Exception {
+        when(pdv.getEntiy()).thenReturn(mock(Entiy.class));
+        when(pdv.getEntiy().getGroup()).thenReturn(mock(Group.class));
+        when(pdv.getEntiy().getGroup().getNumber()).thenReturn("MO");
+
+        boolean result = coffreUtilService.isMonaco(pdv);
+
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsMonaco_shouldReturnFalse() throws Exception {
+        when(pdv.getEntiy()).thenReturn(mock(Entiy.class));
+        when(pdv.getEntiy().getGroup()).thenReturn(mock(Group.class));
+        when(pdv.getEntiy().getGroup().getNumber()).thenReturn("NOTMO");
+
+        boolean result = coffreUtilService.isMonaco(pdv);
+
+        assertFalse(result);
     }
 }
