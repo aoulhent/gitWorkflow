@@ -1,1 +1,211 @@
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import javax.persistence.EntityManager;
+import javax.persistence.NoResultException;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class CoffreUtilServiceTest {
+
+    @Mock
+    private CoffreTarificationRepository coffreTarificationRepository;
+
+    @Mock
+    private CoffreDataRepository coffreDataRepository;
+
+    @Mock
+    private CoffreTemplateSourceRepository coffreTemplateSourceRepository;
+
+    @Mock
+    private LoadPeriodService loadPeriodService;
+
+    @Mock
+    private EntityManager entityManager;
+
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private CoffreLocationRepository coffreLocationRepository;
+
+    @Mock
+    private CoffreFacturationRepository coffreFacturationRepository;
+
+    @Mock
+    private CoffreTransfertFichierRepository coffreTransfertFichierRepository;
+
+    @Mock
+    private CoffreFacturationEvenementRepository coffreFacturationEvenementRepository;
+
+    @Mock
+    private LoadPeriodRepository loadPeriodRepository;
+
+    @Mock
+    private AgGridQueryService agGridQueryService;
+
+    @Mock
+    private FileCompressorService fileCompressorService;
+
+    @Mock
+    private CoffreValidationEtapeRepository coffreValidationEtapeRepository;
+
+    @Mock
+    private CoffreFermetureSalleForteLocationRepository coffreFermetureSalleForteLocationRepository;
+
+    @Mock
+    private CoffreFermetureEtapeRepository coffreFermetureEtapeRepository;
+
+    @Mock
+    private CoffreCartonSignatureRepository coffreCartonSignatureRepository;
+
+    @Mock
+    private CoffreDocumentRepository coffreDocumentRepository;
+
+    @Mock
+    private FileCosManagement fileCosManagement;
+
+    @InjectMocks
+    private CoffreUtilService coffreUtilService;
+
+    private CoffreLocation mockCoffreLocation;
+    private CoffreData mockCoffreData;
+
+    @BeforeEach
+    void setUp() {
+        mockCoffreLocation = new CoffreLocation();
+        mockCoffreData = new CoffreData();
+        mockCoffreLocation.setCoffreData(mockCoffreData);
+    }
+
+    @Test
+    void testLoadCoffreData_Success() {
+        // Arrange
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        CriteriaQuery<CoffreData> cq = mock(CriteriaQuery.class);
+        Root<CoffreData> root = mock(Root.class);
+        List<Predicate> predicates = new LinkedList<>();
+
+        when(entityManager.getCriteriaBuilder()).thenReturn(cb);
+        when(cb.createQuery(CoffreData.class)).thenReturn(cq);
+        when(cq.from(CoffreData.class)).thenReturn(root);
+        when(entityManager.createQuery(cq.select(root)).getSingleResult()).thenReturn(mockCoffreData);
+
+        // Act
+        CoffreData result = coffreUtilService.loadCoffreData(1L);
+
+        // Assert
+        assertNotNull(result);
+        verify(entityManager, times(1)).createQuery(cq.select(root));
+    }
+
+    @Test
+    void testLoadCoffreData_NoResultException() {
+        // Arrange
+        when(entityManager.createQuery(any(CriteriaQuery.class)).getSingleResult()).thenThrow(NoResultException.class);
+
+        // Act & Assert
+        assertThrows(NoResultException.class, () -> coffreUtilService.loadCoffreData(1L));
+    }
+
+    @Test
+    void testLoadCoffreLocation_Success() throws Exception {
+        // Arrange
+        when(coffreLocationRepository.findById(anyLong())).thenReturn(Optional.of(mockCoffreLocation));
+        when(coffreUtilService.loadCoffreData(anyLong())).thenReturn(mockCoffreData);
+
+        // Act
+        CoffreLocation result = coffreUtilService.loadCoffreLocation(1L);
+
+        // Assert
+        assertNotNull(result);
+        verify(coffreLocationRepository, times(1)).findById(anyLong());
+    }
+
+    @Test
+    void testLoadCoffreLocation_WrongLocationException() {
+        // Arrange
+        when(coffreLocationRepository.findById(anyLong())).thenReturn(Optional.empty());
+
+        // Act & Assert
+        Exception exception = assertThrows(WrongLocationException.class, () -> coffreUtilService.loadCoffreLocation(1L));
+        assertEquals("Cette location est erronée", exception.getMessage());
+    }
+
+    @Test
+    void testIsOldLocation_True() throws Exception {
+        // Arrange
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+        CoffreLocation oldCoffreLocation = new CoffreLocation();
+        oldCoffreLocation.setDateLocation(dateFormat.parse("01/01/2020"));
+
+        when(coffreUtilService.getDateDebutNouvelleLocation()).thenReturn("01/01/2021");
+
+        // Act
+        boolean result = coffreUtilService.isOldLocation(oldCoffreLocation);
+
+        // Assert
+        assertTrue(result);
+    }
+
+    @Test
+    void testIsOldLocation_False() throws Exception {
+        // Arrange
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy");
+        CoffreLocation newCoffreLocation = new CoffreLocation();
+        newCoffreLocation.setDateLocation(dateFormat.parse("01/01/2022"));
+
+        when(coffreUtilService.getDateDebutNouvelleLocation()).thenReturn("01/01/2021");
+
+        // Act
+        boolean result = coffreUtilService.isOldLocation(newCoffreLocation);
+
+        // Assert
+        assertFalse(result);
+    }
+
+    // Test for generateCartonSignaturePdf
+    @Test
+    void testGenerateCartonSignaturePdf_Success() throws Exception {
+        // Arrange
+        CoffreCartonSignature cartonSignature = new CoffreCartonSignature();
+        CoffreTemplateSource templateSource = new CoffreTemplateSource();
+
+        doNothing().when(coffreUtilService).generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+        // Act
+        coffreUtilService.generateCartonSignaturePdf(cartonSignature, mockCoffreData, templateSource);
+
+        // Assert
+        verify(coffreUtilService, times(1)).generatePdf(any(), eq(CoffreTypePdfEnum.CARTON_SIGNATURE), any(), eq(CoffreTemplateSourceEnum.CARTON_SIGNATURE), any(), any(), isNull(), isNull(), isNull(), isNull(), isNull());
+    }
+
+    // Additional tests should cover:
+    // - generateContratPdf
+    // - generateFichePliScellePdf
+    // - generateAvenantPdf
+    // - generateVisiteClientPdf
+    // - generateCloturePdf
+    // - generateDerogationPdf
+    // - generateDerogationPermanentePdf
+    // - addDocumentIfDerogation (including handling of permanent and non-permanent derogations)
+}
 
