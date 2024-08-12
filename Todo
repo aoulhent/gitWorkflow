@@ -10,6 +10,12 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
+import javax.persistence.TypedQuery;
+
 @ExtendWith(MockitoExtension.class)
 class CoffreUtilServiceTest {
 
@@ -17,10 +23,10 @@ class CoffreUtilServiceTest {
     private EntityManager entityManager;
 
     @Mock
-    private UserService userService;  // Mock the UserService
+    private UserService userService;
 
     @Mock
-    private User user;  // Mock the User object
+    private User user;
 
     @InjectMocks
     private CoffreUtilService coffreUtilService;
@@ -29,13 +35,9 @@ class CoffreUtilServiceTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         
-        // Mock the behavior of userService.getCurrentUser() to return the mock User
         when(userService.getCurrentUser()).thenReturn(user);
-        
-        // Mock the user object behavior to avoid NullPointerException
         when(user.getBmdRold()).thenReturn("mockRole");
         
-        // Inject the mock UserService into CoffreUtilService using reflection
         ReflectionTestUtils.setField(coffreUtilService, "userService", userService);
     }
 
@@ -50,6 +52,10 @@ class CoffreUtilServiceTest {
         when(entityManager.getCriteriaBuilder()).thenReturn(cb);
         when(cb.createQuery(CoffreData.class)).thenReturn(cq);
         when(cq.from(CoffreData.class)).thenReturn(root);
+
+        // Mock the behavior of root to return a specific path when get() is called
+        when(root.get("id")).thenReturn(mock(javax.persistence.criteria.Path.class));  // Adjust "id" to match your criteria
+        when(root.get("pdv")).thenReturn(mock(javax.persistence.criteria.Path.class)); // Ensure "pdv" is mocked as well
 
         Predicate predicate = mock(Predicate.class);
         when(cb.equal(root.get("id"), 1L)).thenReturn(predicate);
@@ -66,7 +72,7 @@ class CoffreUtilServiceTest {
         assertNotNull(result);
         verify(entityManager, times(1)).createQuery(cq);
         verify(typedQuery, times(1)).getSingleResult();
-        verify(userService, times(1)).getCurrentUser();  // Ensure userService.getCurrentUser() was called
-        verify(user, times(1)).getBmdRold(); // Ensure the method was called on the mock user
+        verify(userService, times(1)).getCurrentUser();
+        verify(user, times(1)).getBmdRold();
     }
 }
