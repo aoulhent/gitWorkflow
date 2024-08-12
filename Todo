@@ -1,13 +1,6 @@
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-import javax.persistence.EntityManager;
-import javax.persistence.TypedQuery;
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.CriteriaQuery;
-import javax.persistence.criteria.Predicate;
-import javax.persistence.criteria.Root;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +8,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class CoffreUtilServiceTest {
@@ -23,16 +17,26 @@ class CoffreUtilServiceTest {
     private EntityManager entityManager;
 
     @Mock
+    private UserService userService;  // Mock the UserService
+
+    @Mock
     private User user;  // Mock the User object
 
     @InjectMocks
-    private CoffreUtilService coffreUtilService;  // Automatically injects mocks
+    private CoffreUtilService coffreUtilService;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        
+        // Mock the behavior of userService.getCurrentUser() to return the mock User
+        when(userService.getCurrentUser()).thenReturn(user);
+        
         // Mock the user object behavior to avoid NullPointerException
         when(user.getBmdRold()).thenReturn("mockRole");
+        
+        // Inject the mock UserService into CoffreUtilService using reflection
+        ReflectionTestUtils.setField(coffreUtilService, "userService", userService);
     }
 
     @Test
@@ -62,6 +66,7 @@ class CoffreUtilServiceTest {
         assertNotNull(result);
         verify(entityManager, times(1)).createQuery(cq);
         verify(typedQuery, times(1)).getSingleResult();
-        verify(user, times(1)).getBmdRold(); // Ensure the method was called on the mock
+        verify(userService, times(1)).getCurrentUser();  // Ensure userService.getCurrentUser() was called
+        verify(user, times(1)).getBmdRold(); // Ensure the method was called on the mock user
     }
 }
