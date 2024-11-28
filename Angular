@@ -1,88 +1,34 @@
-To divide an Angular component into three sections as you described, you can use HTML and CSS with Flexbox. Here’s how you can implement it:
+// steps.component.ts
+import { Component } from '@angular/core';
 
-1. Left Component: Takes the left side of the screen.
-
-
-2. Right Components: Two components stacked vertically on the right.
-
-
-
-Step 1: Create the Angular components
-
-For this example, let's assume the following components:
-
-LeftComponent
-
-TopRightComponent
-
-BottomRightComponent
-
-
-Step 2: Parent component HTML
-
-<div class="container">
-  <div class="left">
-    <app-left-component></app-left-component>
-  </div>
-  <div class="right">
-    <div class="top-right">
-      <app-top-right-component></app-top-right-component>
+@Component({
+  selector: 'app-steps',
+  template: `
+    <p-steps [(activeIndex)]="activeIndex" [model]="steps"></p-steps>
+    <div class="step-content">
+      <ng-container *ngIf="activeIndex === 0">
+        <app-step-one></app-step-one>
+      </ng-container>
+      <ng-container *ngIf="activeIndex === 1">
+        <app-step-two></app-step-two>
+      </ng-container>
+      <ng-container *ngIf="activeIndex === 2">
+        <app-step-three></app-step-three>
+      </ng-container>
     </div>
-    <div class="bottom-right">
-      <app-bottom-right-component></app-bottom-right-component>
-    </div>
-  </div>
-</div>
-
-Step 3: Parent component CSS
-
-.container {
-  display: flex;
-  height: 100vh; /* Full viewport height */
-}
-
-.left {
-  flex: 1; /* Take up 1/3 of the width */
-  background-color: #f0f0f0; /* Just for visual purposes */
-}
-
-.right {
-  flex: 2; /* Take up 2/3 of the width */
-  display: flex;
-  flex-direction: column;
-}
-
-.top-right, .bottom-right {
-  flex: 1;
-  background-color: #e0e0e0; /* Just for visual purposes */
-  margin: 10px 0; /* Optional spacing */
-}
-
-Step 4: Angular Component Declarations
-
-In your app.module.ts, ensure you declare these components:
-
-@NgModule({
-  declarations: [
-    AppComponent,
-    LeftComponent,
-    TopRightComponent,
-    BottomRightComponent
-  ],
-  imports: [ BrowserModule ],
-  providers: [],
-  bootstrap: [AppComponent]
+  `,
+  styles: [`
+    .step-content {
+      margin-top: 20px;
+    }
+  `]
 })
-export class AppModule { }
+export class StepsComponent {
+  activeIndex: number = 0;
 
-Explanation
-
-display: flex: Enables a flexible layout.
-
-flex: 1 and flex: 2: Determines how much space each section takes relative to the other.
-
-The .right section is divided vertically into .top-right and .bottom-right components.
-
-
-This code will split your screen into three sections with one large section on the left and two smaller sections stacked on the right side.
-
+  steps = [
+    { label: 'Step One' },
+    { label: 'Step Two' },
+    { label: 'Step Three' }
+  ];
+}
