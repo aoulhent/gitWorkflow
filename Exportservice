@@ -1,0 +1,28 @@
+@Service
+public class ExportService {
+
+    private final Map<String, ExportStatus> exportStatuses = new ConcurrentHashMap<>();
+
+    @Async
+    public CompletableFuture<String> exportData(String requestId) {
+        try {
+            exportStatuses.put(requestId, new ExportStatus("IN_PROGRESS"));
+
+            // Simulate a long-running export task (replace with your logic)
+            Thread.sleep(120000); // 2 minutes
+            String filePath = "/path/to/exported-file.csv";
+
+            // Mark as completed
+            exportStatuses.put(requestId, new ExportStatus("COMPLETED", filePath));
+            return CompletableFuture.completedFuture(filePath);
+
+        } catch (Exception e) {
+            exportStatuses.put(requestId, new ExportStatus("FAILED"));
+            throw new RuntimeException("Export failed", e);
+        }
+    }
+
+    public ExportStatus getExportStatus(String requestId) {
+        return exportStatuses.getOrDefault(requestId, new ExportStatus("NOT_FOUND"));
+    }
+}
