@@ -1,0 +1,34 @@
+import { Component } from '@angular/core';
+import { ExportService } from './export.service';
+import { interval, switchMap, takeWhile } from 'rxjs';
+
+@Component({
+  selector: 'app-export',
+  template: `
+    <button (click)="startExport()">Export Data</button>
+    <p *ngIf="status">Status: {{ status }}</p>
+    <a *ngIf="fileUrl" [href]="fileUrl" download>Download Exported File</a>
+  `
+})
+export class ExportComponent {
+  status: string = '';
+  fileUrl: string | null = null;
+
+  constructor(private exportService: ExportService) {}
+
+  startExport() {
+    this.exportService.startExport().subscribe(requestId => {
+      interval(3000) // Poll every 3 seconds
+        .pipe(
+          switchMap(() => this.exportService.getExportStatus(requestId)),
+          takeWhile(res => res.status === 'IN_PROGRESS', true)
+        )
+        .subscribe(res => {
+          this.status = res.status;
+          if (res.status === 'COMPLETED') {
+            this.fileUrl = res.filePath;
+          }
+        });
+    });
+  }
+}
