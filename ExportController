@@ -1,0 +1,23 @@
+@RestController
+@RequestMapping("/api/exports")
+public class ExportController {
+
+    private final ExportService exportService;
+
+    public ExportController(ExportService exportService) {
+        this.exportService = exportService;
+    }
+
+    @PostMapping("/start")
+    public ResponseEntity<String> startExport() {
+        String requestId = UUID.randomUUID().toString();
+        exportService.exportData(requestId);
+        return ResponseEntity.ok(requestId);
+    }
+
+    @GetMapping("/status/{requestId}")
+    public ResponseEntity<ExportStatus> getExportStatus(@PathVariable String requestId) {
+        ExportStatus status = exportService.getExportStatus(requestId);
+        return ResponseEntity.ok(status);
+    }
+}
